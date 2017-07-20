@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "kiss_fft.h"
+#include "common.h"
 
 #define FRAME_SIZE_SHIFT 2
 #define FRAME_SIZE (120<<FRAME_SIZE_SHIFT)
@@ -21,12 +22,12 @@ static const opus_int16 eband5ms[] = {
 typedef struct {
   int init;
   kiss_fft_state *kfft;
+  float half_window[FRAME_SIZE];
 } CommonState;
 
 typedef struct {
   float analysis_mem[FRAME_SIZE];
   float synthesis_mem[FRAME_SIZE];
-  
 } DenoiseState;
 
 void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
@@ -56,13 +57,16 @@ void interp_band_gain(float *g, const float *bandE) {
 CommonState common;
 
 static void check_init() {
+  int i;
   if (common.init) return;
   common.kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
+  for (i=0;i<FRAME_SIZE;i++)
+    common.half_window[i] = sin(.5*M_PI*sin(.5*M_PI*(i+.5)/FRAME_SIZE) * sin(.5*M_PI*(i+.5)/FRAME_SIZE));
   common.init = 1;
 }
 
 
-void forward_transform(kiss_fft_cpx *out, const float *in) {
+static void forward_transform(kiss_fft_cpx *out, const float *in) {
   int i;
   kiss_fft_cpx x[WINDOW_SIZE];
   kiss_fft_cpx y[WINDOW_SIZE];
@@ -77,7 +81,7 @@ void forward_transform(kiss_fft_cpx *out, const float *in) {
   }
 }
 
-void inverse_transform(float *out, const kiss_fft_cpx *in) {
+static void inverse_transform(float *out, const kiss_fft_cpx *in) {
   int i;
   kiss_fft_cpx x[WINDOW_SIZE];
   kiss_fft_cpx y[WINDOW_SIZE];
@@ -97,23 +101,64 @@ void inverse_transform(float *out, const kiss_fft_cpx *in) {
   }
 }
 
+static void apply_window(float *x) {
+  int i;
+  check_init();
+  for (i=0;i<FRAME_SIZE;i++) {
+    x[i] *= common.half_window[i];
+    x[WINDOW_SIZE - 1 - i] *= common.half_window[i];
+  }
+}
+
+int rnnoise_init(DenoiseState *st) {
+  memset(st, 0, sizeof(*st));
+  return 0;
+}
+
+DenoiseState *rnnoise_create() {
+  DenoiseState *st;
+  st = malloc(sizeof(DenoiseState));
+  rnnoise_init(st);
+  return st;
+}
+
+void process_frame(DenoiseState *st, float *out, const float *in) {
+  float x[WINDOW_SIZE];
+  int i;
+  kiss_fft_cpx y[FREQ_SIZE];
+  RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
+  for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
+  RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
+  apply_window(x);
+  forward_transform(y, x);
+  /* Do the actual processing here. */
+  inverse_transform(x, y);
+  apply_window(x);
+  for (i=0;i<FRAME_SIZE;i++) out[i] = x[i] + st->synthesis_mem[i];
+  RNN_COPY(st->synthesis_mem, &x[FRAME_SIZE], FRAME_SIZE);
+}
+
 int main() {
   int i;
-  float x[2*FRAME_SIZE];
-  kiss_fft_cpx y[2*FRAME_SIZE];
-  float bandE[NB_BANDS];
+  float x[FRAME_SIZE];
+  DenoiseState *st;
+  st = rnnoise_create();
   memset(x, 0, sizeof(x));
   x[0] = 1;
-  x[1] = 1;
+  x[1] = -1;
   //opus_fft(kfft, x, y, 0);
-  forward_transform(y, x);
-  compute_band_energy(bandE, y);
-  inverse_transform(x, y);
+  //forward_transform(y, x);
+  //compute_band_energy(bandE, y);
+  //inverse_transform(x, y);
   /*for (i=0;i<2*FRAME_SIZE;i++)
     printf("%f %f\n", y[i].r, y[i].i);*/
   /*for (i=0;i<NB_BANDS;i++)
     printf("%f\n", bandE[i]);*/
-  for (i=0;i<WINDOW_SIZE;i++)
+  process_frame(st, x, x);
+  for (i=0;i<FRAME_SIZE;i++)
+    printf("%f\n", x[i]);
+  process_frame(st, x, x);
+  for (i=0;i<FRAME_SIZE;i++)
     printf("%f\n", x[i]);
   return 0;
 }
