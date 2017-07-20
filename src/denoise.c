@@ -78,25 +78,42 @@ void forward_transform(kiss_fft_cpx *out, const float *in) {
 }
 
 void inverse_transform(float *out, const kiss_fft_cpx *in) {
+  int i;
+  kiss_fft_cpx x[WINDOW_SIZE];
+  kiss_fft_cpx y[WINDOW_SIZE];
   check_init();
+  for (i=0;i<FREQ_SIZE;i++) {
+    x[i] = in[i];
+  }
+  for (;i<WINDOW_SIZE;i++) {
+    x[i].r = x[WINDOW_SIZE - i].r;
+    x[i].i = -x[WINDOW_SIZE - i].i;
+  }
+  opus_fft(common.kfft, x, y, 0);
+  /* output in reverse order for IFFT. */
+  out[0] = WINDOW_SIZE*y[0].r;
+  for (i=1;i<WINDOW_SIZE;i++) {
+    out[i] = WINDOW_SIZE*y[WINDOW_SIZE - i].r;
+  }
 }
 
 int main() {
   int i;
-  kiss_fft_state *kfft;
   float x[2*FRAME_SIZE];
   kiss_fft_cpx y[2*FRAME_SIZE];
   float bandE[NB_BANDS];
   memset(x, 0, sizeof(x));
   x[0] = 1;
   x[1] = 1;
-  kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
   //opus_fft(kfft, x, y, 0);
   forward_transform(y, x);
   compute_band_energy(bandE, y);
+  inverse_transform(x, y);
   /*for (i=0;i<2*FRAME_SIZE;i++)
     printf("%f %f\n", y[i].r, y[i].i);*/
-  for (i=0;i<NB_BANDS;i++)
-    printf("%f\n", bandE[i]);
+  /*for (i=0;i<NB_BANDS;i++)
+    printf("%f\n", bandE[i]);*/
+  for (i=0;i<WINDOW_SIZE;i++)
+    printf("%f\n", x[i]);
   return 0;
 }
