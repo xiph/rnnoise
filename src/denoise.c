@@ -9,7 +9,6 @@
 #define WINDOW_SIZE (2*FRAME_SIZE)
 #define FREQ_SIZE (FRAME_SIZE + 1)
 
-#define NB_BANDS 21
 
 #define SQUARE(x) ((x)*(x))
 
@@ -30,6 +29,49 @@ typedef struct {
   float synthesis_mem[FRAME_SIZE];
 } DenoiseState;
 
+#if 1
+#define NB_BANDS 22
+void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
+  int i;
+  float sum[NB_BANDS] = {0};
+  for (i=0;i<NB_BANDS-1;i++)
+  {
+    int j;
+    int band_size;
+    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    for (j=0;j<band_size;j++) {
+      float tmp;
+      float frac = (float)j/band_size;
+      tmp = SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r);
+      tmp += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i);
+      sum[i] += (1-frac)*tmp;
+      sum[i+1] += frac*tmp;
+    }
+  }
+  sum[0] *= 2;
+  sum[NB_BANDS-1] *= 2;
+  for (i=0;i<NB_BANDS;i++)
+  {
+    bandE[i] = sum[i];
+  }
+}
+
+void interp_band_gain(float *g, const float *bandE) {
+  int i;
+  memset(g, 0, FREQ_SIZE);
+  for (i=0;i<NB_BANDS-1;i++)
+  {
+    int j;
+    int band_size;
+    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    for (j=0;j<band_size;j++) {
+      float frac = (float)j/band_size;
+      g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = (1-frac)*bandE[i] + frac*bandE[i+1];
+    }
+  }
+}
+#else
+#define NB_BANDS 21
 void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   int i;
   for (i=0;i<NB_BANDS;i++)
@@ -40,7 +82,7 @@ void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
       sum += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r);
       sum += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i);
     }
-    bandE[i] = sqrt(sum);
+    bandE[i] = sum;
   }
 }
 
@@ -54,6 +96,8 @@ void interp_band_gain(float *g, const float *bandE) {
       g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = bandE[i];
   }
 }
+#endif
+
 
 CommonState common;
 
