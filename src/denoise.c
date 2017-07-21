@@ -187,7 +187,7 @@ static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y)
   RNN_COPY(st->synthesis_mem, &x[FRAME_SIZE], FRAME_SIZE);
 }
 
-static void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
+void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   kiss_fft_cpx y[FREQ_SIZE];
   frame_analysis(st, y, in);
   /* Do processing here. */
@@ -204,6 +204,10 @@ int main(int argc, char **argv) {
   DenoiseState *noisy;
   st = rnnoise_create();
   noisy = rnnoise_create();
+  if (argc!=4) {
+    fprintf(stderr, "usage: %s <speech> <noise> <output denoised>\n", argv[0]);
+    return 1;
+  }
   f1 = fopen(argv[1], "r");
   f2 = fopen(argv[2], "r");
   fout = fopen(argv[3], "w");
@@ -252,16 +256,5 @@ int main(int argc, char **argv) {
   fclose(f1);
   fclose(f2);
   fclose(fout);
-#if 0
-  memset(x, 0, sizeof(x));
-  x[0] = 1;
-  x[1] = -1;
-  rnnoise_process_frame(st, x, x);
-  for (i=0;i<FRAME_SIZE;i++)
-    printf("%f\n", x[i]);
-  rnnoise_process_frame(st, x, x);
-  for (i=0;i<FRAME_SIZE;i++)
-    printf("%f\n", x[i]);
-#endif
   return 0;
 }
