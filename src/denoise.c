@@ -122,20 +122,31 @@ DenoiseState *rnnoise_create() {
   return st;
 }
 
-void process_frame(DenoiseState *st, float *out, const float *in) {
+
+static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, const float *in) {
   float x[WINDOW_SIZE];
   int i;
-  kiss_fft_cpx y[FREQ_SIZE];
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
   for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
   forward_transform(y, x);
-  /* Do the actual processing here. */
+}
+
+static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
+  float x[WINDOW_SIZE];
+  int i;
   inverse_transform(x, y);
   apply_window(x);
   for (i=0;i<FRAME_SIZE;i++) out[i] = x[i] + st->synthesis_mem[i];
   RNN_COPY(st->synthesis_mem, &x[FRAME_SIZE], FRAME_SIZE);
+}
+
+static void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
+  kiss_fft_cpx y[FREQ_SIZE];
+  frame_analysis(st, y, in);
+  /* Do processing here. */
+  frame_synthesis(st, out, y);
 }
 
 int main() {
@@ -154,10 +165,10 @@ int main() {
     printf("%f %f\n", y[i].r, y[i].i);*/
   /*for (i=0;i<NB_BANDS;i++)
     printf("%f\n", bandE[i]);*/
-  process_frame(st, x, x);
+  rnnoise_process_frame(st, x, x);
   for (i=0;i<FRAME_SIZE;i++)
     printf("%f\n", x[i]);
-  process_frame(st, x, x);
+  rnnoise_process_frame(st, x, x);
   for (i=0;i<FRAME_SIZE;i++)
     printf("%f\n", x[i]);
   return 0;
