@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "kiss_fft.h"
 #include "common.h"
+#include <math.h>
 
 #define FRAME_SIZE_SHIFT 2
 #define FRAME_SIZE (120<<FRAME_SIZE_SHIFT)
@@ -11,6 +12,14 @@
 
 
 #define SQUARE(x) ((x)*(x))
+
+#define SMOOTH_BANDS 1
+
+#if SMOOTH_BANDS
+#define NB_BANDS 22
+#else
+#define NB_BANDS 21
+#endif
 
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -22,6 +31,7 @@ typedef struct {
   int init;
   kiss_fft_state *kfft;
   float half_window[FRAME_SIZE];
+  float dct_table[NB_BANDS*NB_BANDS];
 } CommonState;
 
 typedef struct {
@@ -29,8 +39,7 @@ typedef struct {
   float synthesis_mem[FRAME_SIZE];
 } DenoiseState;
 
-#if 1
-#define NB_BANDS 22
+#if SMOOTH_BANDS
 void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   int i;
   float sum[NB_BANDS] = {0};
@@ -71,7 +80,6 @@ void interp_band_gain(float *g, const float *bandE) {
   }
 }
 #else
-#define NB_BANDS 21
 void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   int i;
   for (i=0;i<NB_BANDS;i++)
@@ -107,9 +115,43 @@ static void check_init() {
   common.kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
   for (i=0;i<FRAME_SIZE;i++)
     common.half_window[i] = sin(.5*M_PI*sin(.5*M_PI*(i+.5)/FRAME_SIZE) * sin(.5*M_PI*(i+.5)/FRAME_SIZE));
+  for (i=0;i<NB_BANDS;i++) {
+    int j;
+    for (j=0;j<NB_BANDS;j++) {
+      common.dct_table[i*NB_BANDS + j] = cos((i+.5)*j*M_PI/NB_BANDS);
+      if (j==0) common.dct_table[i*NB_BANDS + j] *= sqrt(.5);
+    }
+  }
   common.init = 1;
 }
 
+static void dct(float *out, const float *in) {
+  int i;
+  check_init();
+  for (i=0;i<NB_BANDS;i++) {
+    int j;
+    float sum = 0;
+    for (j=0;j<NB_BANDS;j++) {
+      sum += in[j] * common.dct_table[j*NB_BANDS + i];
+    }
+    out[i] = sum*sqrt(2./22);
+  }
+}
+
+#if 0
+static void idct(float *out, const float *in) {
+  int i;
+  check_init();
+  for (i=0;i<NB_BANDS;i++) {
+    int j;
+    float sum = 0;
+    for (j=0;j<NB_BANDS;j++) {
+      sum += in[j] * common.dct_table[i*NB_BANDS + j];
+    }
+    out[i] = sum*sqrt(2./22);
+  }
+}
+#endif
 
 static void forward_transform(kiss_fft_cpx *out, const float *in) {
   int i;
@@ -218,6 +260,7 @@ int main(int argc, char **argv) {
   while (1) {
     kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE];
     float Ex[NB_BANDS], Ey[NB_BANDS];
+    float Ly[NB_BANDS], Cy[NB_BANDS];
     float g[NB_BANDS];
     float gf[FREQ_SIZE];
     short tmp[FRAME_SIZE];
@@ -233,6 +276,8 @@ int main(int argc, char **argv) {
     frame_analysis(noisy, Y, xn);
     compute_band_energy(Ex, X);
     compute_band_energy(Ey, Y);
+    for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
+    dct(Cy, Ly);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
