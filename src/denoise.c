@@ -46,6 +46,7 @@ void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
 
 void interp_band_gain(float *g, const float *bandE) {
   int i;
+  memset(g, 0, FREQ_SIZE);
   for (i=0;i<NB_BANDS;i++)
   {
     int j;
@@ -149,27 +150,74 @@ static void rnnoise_process_frame(DenoiseState *st, float *out, const float *in)
   frame_synthesis(st, out, y);
 }
 
-int main() {
+int main(int argc, char **argv) {
   int i;
   float x[FRAME_SIZE];
+  float n[FRAME_SIZE];
+  float xn[FRAME_SIZE];
+  FILE *f1, *f2, *fout;
   DenoiseState *st;
+  DenoiseState *noisy;
   st = rnnoise_create();
+  noisy = rnnoise_create();
+  f1 = fopen(argv[1], "r");
+  f2 = fopen(argv[2], "r");
+  fout = fopen(argv[3], "w");
+  for(i=0;i<150;i++) {
+    short tmp[FRAME_SIZE];
+    fread(tmp, sizeof(short), FRAME_SIZE, f2);
+  }
+  while (1) {
+    kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE];
+    float Ex[NB_BANDS], Ey[NB_BANDS];
+    float g[NB_BANDS];
+    float gf[FREQ_SIZE];
+    short tmp[FRAME_SIZE];
+    fread(tmp, sizeof(short), FRAME_SIZE, f1);
+    if (feof(f1)) break;
+    for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
+    fread(tmp, sizeof(short), FRAME_SIZE, f2);
+    if (feof(f2)) break;
+    for (i=0;i<FRAME_SIZE;i++) n[i] = tmp[i];
+    for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + 3*n[i];
+
+    frame_analysis(st, X, x);
+    frame_analysis(noisy, Y, xn);
+    compute_band_energy(Ex, X);
+    compute_band_energy(Ey, Y);
+    for (i=0;i<NB_BANDS;i++) {
+      g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
+      if (g[i] > 1) g[i] = 1;
+    }
+    interp_band_gain(gf, g);
+#if 1
+    for (i=0;i<NB_BANDS;i++) printf("%f ", g[i]);
+    printf("\n");
+#endif
+#if 1
+    for (i=0;i<FREQ_SIZE;i++) {
+      Y[i].r *= gf[i];
+      Y[i].i *= gf[i];
+    }
+#endif
+    frame_synthesis(noisy, xn, Y);
+
+    for (i=0;i<FRAME_SIZE;i++) tmp[i] = xn[i];
+    fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
+  }
+  fclose(f1);
+  fclose(f2);
+  fclose(fout);
+#if 0
   memset(x, 0, sizeof(x));
   x[0] = 1;
   x[1] = -1;
-  //opus_fft(kfft, x, y, 0);
-  //forward_transform(y, x);
-  //compute_band_energy(bandE, y);
-  //inverse_transform(x, y);
-  /*for (i=0;i<2*FRAME_SIZE;i++)
-    printf("%f %f\n", y[i].r, y[i].i);*/
-  /*for (i=0;i<NB_BANDS;i++)
-    printf("%f\n", bandE[i]);*/
   rnnoise_process_frame(st, x, x);
   for (i=0;i<FRAME_SIZE;i++)
     printf("%f\n", x[i]);
   rnnoise_process_frame(st, x, x);
   for (i=0;i<FRAME_SIZE;i++)
     printf("%f\n", x[i]);
+#endif
   return 0;
 }
