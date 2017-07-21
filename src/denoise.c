@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
     if (feof(f2)) break;
     for (i=0;i<FRAME_SIZE;i++) n[i] = tmp[i];
-    for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + 3*n[i];
+    for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
 
     frame_analysis(st, X, x);
     frame_analysis(noisy, Y, xn);
@@ -278,6 +278,9 @@ int main(int argc, char **argv) {
     compute_band_energy(Ey, Y);
     for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
     dct(Cy, Ly);
+    Cy[0] -= 120;
+    Cy[1] -= 40;
+    for (i=0;i<NB_BANDS;i++) printf("%f ", Cy[i]);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
