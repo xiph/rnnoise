@@ -21,7 +21,8 @@
 #define NB_BANDS 21
 #endif
 
-#define NB_FEATURES NB_BANDS
+#define CEPS_MEM 8
+#define NB_FEATURES (NB_BANDS+1)
 
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -38,6 +39,8 @@ typedef struct {
 
 typedef struct {
   float analysis_mem[FRAME_SIZE];
+  float cepstral_mem[CEPS_MEM][NB_BANDS];
+  int memid;
   float synthesis_mem[FRAME_SIZE];
 } DenoiseState;
 
@@ -223,11 +226,36 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
   if (Ey != NULL) {
     compute_band_energy(Ey, y);
     if (features != NULL) {
+      float spec_variability = 0;
       float Ly[NB_BANDS];
       for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
       dct(features, Ly);
       features[0] -= 120;
       features[1] -= 40;
+      /* Spectral variability features. */
+      for (i=0;i<NB_BANDS;i++) st->cepstral_mem[st->memid][i] = features[i];
+      st->memid++;
+      if (st->memid == CEPS_MEM) st->memid = 0;
+      for (i=0;i<CEPS_MEM;i++)
+      {
+        int j;
+        float mindist = 1e15f;
+        for (j=0;j<CEPS_MEM;j++)
+        {
+          int k;
+          float dist=0;
+          for (k=0;k<NB_BANDS;k++)
+          {
+            float tmp;
+            tmp = st->cepstral_mem[i][k] - st->cepstral_mem[j][k];
+            dist += tmp*tmp;
+          }
+          if (j!=i)
+            mindist = MIN32(mindist, dist);
+        }
+        spec_variability += mindist;
+      }
+      features[NB_BANDS] = spec_variability;
     }
   }
 }
@@ -286,7 +314,7 @@ int main(int argc, char **argv) {
 
     frame_analysis(st, X, Ex, NULL, x);
     frame_analysis(noisy, Y, Ey, features, xn);
-    for (i=0;i<NB_BANDS;i++) printf("%f ", features[i]);
+    for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
