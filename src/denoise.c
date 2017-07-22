@@ -22,7 +22,9 @@
 #endif
 
 #define CEPS_MEM 8
-#define NB_FEATURES (NB_BANDS+1)
+#define NB_DELTA_CEPS 6
+
+#define NB_FEATURES (NB_BANDS+2*NB_DELTA_CEPS+1)
 
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -226,15 +228,24 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
   if (Ey != NULL) {
     compute_band_energy(Ey, y);
     if (features != NULL) {
+      float *ceps_0, *ceps_1, *ceps_2;
       float spec_variability = 0;
       float Ly[NB_BANDS];
       for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
       dct(features, Ly);
       features[0] -= 120;
       features[1] -= 40;
-      /* Spectral variability features. */
-      for (i=0;i<NB_BANDS;i++) st->cepstral_mem[st->memid][i] = features[i];
+      ceps_0 = st->cepstral_mem[st->memid];
+      ceps_1 = (st->memid < 1) ? st->cepstral_mem[CEPS_MEM+st->memid-1] : st->cepstral_mem[st->memid-1];
+      ceps_2 = (st->memid < 2) ? st->cepstral_mem[CEPS_MEM+st->memid-2] : st->cepstral_mem[st->memid-2];
+      for (i=0;i<NB_BANDS;i++) ceps_0[i] = features[i];
       st->memid++;
+      for (i=0;i<NB_DELTA_CEPS;i++) {
+        features[i] = ceps_0[i] + ceps_1[i] + ceps_2[i];
+        features[NB_BANDS+i] = ceps_0[i] - ceps_2[i];
+        features[NB_BANDS+NB_DELTA_CEPS+i] =  ceps_0[i] - 2*ceps_1[i] + ceps_2[i];
+      }
+      /* Spectral variability features. */
       if (st->memid == CEPS_MEM) st->memid = 0;
       for (i=0;i<CEPS_MEM;i++)
       {
@@ -255,7 +266,7 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
         }
         spec_variability += mindist;
       }
-      features[NB_BANDS] = spec_variability;
+      features[NB_BANDS+2*NB_DELTA_CEPS] = spec_variability;
     }
   }
 }
@@ -281,6 +292,7 @@ int main(int argc, char **argv) {
   float x[FRAME_SIZE];
   float n[FRAME_SIZE];
   float xn[FRAME_SIZE];
+  int vad_cnt=0;
   FILE *f1, *f2, *fout;
   DenoiseState *st;
   DenoiseState *noisy;
@@ -298,12 +310,14 @@ int main(int argc, char **argv) {
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
   }
   while (1) {
-    kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE];
-    float Ex[NB_BANDS], Ey[NB_BANDS];
+    kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE], N[FREQ_SIZE];
+    float Ex[NB_BANDS], Ey[NB_BANDS], En[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
     float gf[FREQ_SIZE];
     short tmp[FRAME_SIZE];
+    float vad=0;
+    float E=0;
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (feof(f1)) break;
     for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
@@ -311,8 +325,22 @@ int main(int argc, char **argv) {
     if (feof(f2)) break;
     for (i=0;i<FRAME_SIZE;i++) n[i] = tmp[i];
     for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
+    for (i=0;i<FRAME_SIZE;i++) E += x[i]*(float)x[i];
+    if (E > 1e9f) {
+      vad_cnt=0;
+    } else if (E > 1e8f) {
+      vad_cnt -= 5;
+      if (vad_cnt < 0) vad_cnt = 0;
+    } else {
+      vad_cnt++;
+      if (vad_cnt > 15) vad_cnt = 15;
+    }
+    if (vad_cnt >= 10) vad = 0;
+    else if (vad_cnt > 0) vad = 0.5f;
+    else vad = 1.f;
 
     frame_analysis(st, X, Ex, NULL, x);
+    frame_analysis(st, N, En, NULL, n);
     frame_analysis(noisy, Y, Ey, features, xn);
     for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
     for (i=0;i<NB_BANDS;i++) {
@@ -322,7 +350,8 @@ int main(int argc, char **argv) {
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<NB_BANDS;i++) printf("%f ", g[i]);
-    printf("\n");
+    for (i=0;i<NB_BANDS;i++) printf("%f ", En[i]);
+    printf("%f\n", vad);
 #endif
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
