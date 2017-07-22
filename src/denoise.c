@@ -21,6 +21,8 @@
 #define NB_BANDS 21
 #endif
 
+#define NB_FEATURES NB_BANDS
+
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
   0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100
@@ -210,7 +212,7 @@ DenoiseState *rnnoise_create() {
 }
 
 
-static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, const float *in) {
+static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *features, const float *in) {
   float x[WINDOW_SIZE];
   int i;
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
@@ -218,6 +220,16 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, const float *in) {
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
   forward_transform(y, x);
+  if (Ey != NULL) {
+    compute_band_energy(Ey, y);
+    if (features != NULL) {
+      float Ly[NB_BANDS];
+      for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
+      dct(features, Ly);
+      features[0] -= 120;
+      features[1] -= 40;
+    }
+  }
 }
 
 static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
@@ -231,7 +243,7 @@ static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y)
 
 void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   kiss_fft_cpx y[FREQ_SIZE];
-  frame_analysis(st, y, in);
+  frame_analysis(st, y, NULL, NULL, in);
   /* Do processing here. */
   frame_synthesis(st, out, y);
 }
@@ -260,7 +272,7 @@ int main(int argc, char **argv) {
   while (1) {
     kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE];
     float Ex[NB_BANDS], Ey[NB_BANDS];
-    float Ly[NB_BANDS], Cy[NB_BANDS];
+    float features[NB_FEATURES];
     float g[NB_BANDS];
     float gf[FREQ_SIZE];
     short tmp[FRAME_SIZE];
@@ -272,15 +284,9 @@ int main(int argc, char **argv) {
     for (i=0;i<FRAME_SIZE;i++) n[i] = tmp[i];
     for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
 
-    frame_analysis(st, X, x);
-    frame_analysis(noisy, Y, xn);
-    compute_band_energy(Ex, X);
-    compute_band_energy(Ey, Y);
-    for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
-    dct(Cy, Ly);
-    Cy[0] -= 120;
-    Cy[1] -= 40;
-    for (i=0;i<NB_BANDS;i++) printf("%f ", Cy[i]);
+    frame_analysis(st, X, Ex, NULL, x);
+    frame_analysis(noisy, Y, Ey, features, xn);
+    for (i=0;i<NB_BANDS;i++) printf("%f ", features[i]);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
