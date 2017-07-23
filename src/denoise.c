@@ -231,10 +231,10 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
       float *ceps_0, *ceps_1, *ceps_2;
       float spec_variability = 0;
       float Ly[NB_BANDS];
-      for (i=0;i<NB_BANDS;i++) Ly[i] = 10*log10(1e-10+Ey[i]);
+      for (i=0;i<NB_BANDS;i++) Ly[i] = log10(1e-10+Ey[i]);
       dct(features, Ly);
-      features[0] -= 120;
-      features[1] -= 40;
+      features[0] -= 12;
+      features[1] -= 4;
       ceps_0 = st->cepstral_mem[st->memid];
       ceps_1 = (st->memid < 1) ? st->cepstral_mem[CEPS_MEM+st->memid-1] : st->cepstral_mem[st->memid-1];
       ceps_2 = (st->memid < 2) ? st->cepstral_mem[CEPS_MEM+st->memid-2] : st->cepstral_mem[st->memid-2];
@@ -266,7 +266,7 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
         }
         spec_variability += mindist;
       }
-      features[NB_BANDS+2*NB_DELTA_CEPS] = spec_variability;
+      features[NB_BANDS+2*NB_DELTA_CEPS] = spec_variability/CEPS_MEM-2.1;
     }
   }
 }
