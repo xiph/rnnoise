@@ -312,6 +312,7 @@ int main(int argc, char **argv) {
   while (1) {
     kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE], N[FREQ_SIZE];
     float Ex[NB_BANDS], Ey[NB_BANDS], En[NB_BANDS];
+    float Ln[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
     float gf[FREQ_SIZE];
@@ -341,6 +342,7 @@ int main(int argc, char **argv) {
 
     frame_analysis(st, X, Ex, NULL, x);
     frame_analysis(st, N, En, NULL, n);
+    for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-10+En[i]);
     frame_analysis(noisy, Y, Ey, features, xn);
     for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
     for (i=0;i<NB_BANDS;i++) {
@@ -350,7 +352,7 @@ int main(int argc, char **argv) {
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<NB_BANDS;i++) printf("%f ", g[i]);
-    for (i=0;i<NB_BANDS;i++) printf("%f ", En[i]);
+    for (i=0;i<NB_BANDS;i++) printf("%f ", Ln[i]);
     printf("%f\n", vad);
 #endif
 #if 1
