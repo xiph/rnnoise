@@ -295,8 +295,10 @@ int main(int argc, char **argv) {
   int vad_cnt=0;
   FILE *f1, *f2, *fout;
   DenoiseState *st;
+  DenoiseState *noise_state;
   DenoiseState *noisy;
   st = rnnoise_create();
+  noise_state = rnnoise_create();
   noisy = rnnoise_create();
   if (argc!=4) {
     fprintf(stderr, "usage: %s <speech> <noise> <output denoised>\n", argv[0]);
@@ -341,7 +343,7 @@ int main(int argc, char **argv) {
     else vad = 1.f;
 
     frame_analysis(st, X, Ex, NULL, x);
-    frame_analysis(st, N, En, NULL, n);
+    frame_analysis(noise_state, N, En, NULL, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-10+En[i]);
     frame_analysis(noisy, Y, Ey, features, xn);
     for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
