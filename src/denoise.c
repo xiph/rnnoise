@@ -351,12 +351,13 @@ int main(int argc, char **argv) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
     }
-    interp_band_gain(gf, g);
 #if 1
     for (i=0;i<NB_BANDS;i++) printf("%f ", g[i]);
     for (i=0;i<NB_BANDS;i++) printf("%f ", Ln[i]);
     printf("%f\n", vad);
 #endif
+    //for (i=0;i<NB_BANDS;i++) scanf("%f", &g[i]);
+    interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
       Y[i].r *= gf[i];
