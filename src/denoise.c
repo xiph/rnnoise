@@ -317,7 +317,7 @@ int main(int argc, char **argv) {
     float Ln[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
-    float gf[FREQ_SIZE];
+    float gf[FREQ_SIZE]={1};
     short tmp[FRAME_SIZE];
     float vad=0;
     float E=0;
