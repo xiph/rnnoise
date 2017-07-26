@@ -3,6 +3,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include "stdlib.h"
+#include "string.h"
+
 #define RNN_INLINE inline
 #define OPUS_INLINE inline
 
