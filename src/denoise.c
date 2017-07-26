@@ -50,6 +50,8 @@ typedef struct {
   int memid;
   float synthesis_mem[FRAME_SIZE];
   float pitch_buf[PITCH_BUF_SIZE];
+  float last_gain;
+  int last_period;
 } DenoiseState;
 
 #if SMOOTH_BANDS
@@ -231,13 +233,11 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
   forward_transform(y, x);
-  if (features) {
+  if (1) {
     float pitch_buf[PITCH_BUF_SIZE>>1];
     int pitch_index;
     float gain;
     float *(pre[1]);
-    static int last_period;
-    static float last_gain;
     RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
     RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
     pre[0] = &st->pitch_buf[0];
@@ -247,10 +247,9 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
     pitch_index = PITCH_MAX_PERIOD-pitch_index;
 
     gain = remove_doubling(pitch_buf, PITCH_MAX_PERIOD, PITCH_MIN_PERIOD,
-            PITCH_FRAME_SIZE, &pitch_index, last_period, last_gain);
-    last_period = pitch_index;
-    last_gain = gain;
-    printf("%f %d\n", gain, pitch_index);
+            PITCH_FRAME_SIZE, &pitch_index, st->last_period, st->last_gain);
+    st->last_period = pitch_index;
+    st->last_gain = gain;
   }
   if (Ey != NULL) {
     compute_band_energy(Ey, y);
@@ -373,6 +372,7 @@ int main(int argc, char **argv) {
     frame_analysis(noise_state, N, En, NULL, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-10+En[i]);
     frame_analysis(noisy, Y, Ey, features, xn);
+    //printf("%f %d\n", noise_state->last_gain, noise_state->last_period);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
