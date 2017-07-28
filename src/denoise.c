@@ -29,7 +29,7 @@
 #define CEPS_MEM 8
 #define NB_DELTA_CEPS 6
 
-#define NB_FEATURES (NB_BANDS+2*NB_DELTA_CEPS+1)
+#define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
 
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -286,12 +286,15 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
     forward_transform(P, p);
     compute_band_energy(Ep, P);
     compute_band_corr(Exp, y, P);
-#if 0
+    for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ey[i]*Ep[i]);
     if (features) {
-      for (i=0;i<NB_BANDS;i++) printf("%f ", Exp[i]/sqrt(.001+Ey[i]*Ep[i]));
-      printf("\n");
+      float tmp[NB_BANDS];
+      dct(tmp, Exp);
+      for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
+      features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
+      features[NB_BANDS+2*NB_DELTA_CEPS+1] -= 0.9;
+      features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
     }
-#endif
   }
   {
     if (features != NULL) {
@@ -333,7 +336,7 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
         }
         spec_variability += mindist;
       }
-      features[NB_BANDS+2*NB_DELTA_CEPS] = spec_variability/CEPS_MEM-2.1;
+      features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
     }
   }
 }
@@ -418,7 +421,7 @@ int main(int argc, char **argv) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
     }
-#if 0
+#if 1
     for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
     for (i=0;i<NB_BANDS;i++) printf("%f ", g[i]);
     for (i=0;i<NB_BANDS;i++) printf("%f ", Ln[i]);
