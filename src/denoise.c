@@ -225,6 +225,7 @@ DenoiseState *rnnoise_create() {
   return st;
 }
 
+int foo = 0;
 
 static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *features, const float *in) {
   float x[WINDOW_SIZE];
@@ -252,16 +253,28 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
 
     gain = remove_doubling(pitch_buf, PITCH_MAX_PERIOD, PITCH_MIN_PERIOD,
             PITCH_FRAME_SIZE, &pitch_index, st->last_period, st->last_gain);
-    st->last_period = pitch_index;
-    st->last_gain = gain;
-
+    if (gain > .9) gain = .9;
+#if 1
     RNN_MOVE(st->pitch_enh_buf, &st->pitch_enh_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
     for (i=0;i<FRAME_SIZE;i++)
-      st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i] = in[i] + gain*st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i-pitch_index];
+      st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i] = in[i]
+        + ((float)i/FRAME_SIZE)*gain*st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i-pitch_index]
+        + (1-(float)i/FRAME_SIZE)*st->last_gain*st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i-st->last_period];
     RNN_COPY(p, &st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE], WINDOW_SIZE);
     apply_window(p);
-    forward_transform(P, p);
-    
+#else
+    for (i=0;i<WINDOW_SIZE;i++)
+      p[i] = st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE-pitch_index+i];
+    apply_window(p);
+    for (i=0;i<WINDOW_SIZE;i++)
+      p[i] = .5*(p[i]+x[i]);
+#endif
+    st->last_period = pitch_index;
+    st->last_gain = gain;
+    if (foo) {
+      forward_transform(y, p);
+      compute_band_energy(Ey, y);
+    }
   }
   {
     if (features != NULL) {
@@ -364,7 +377,7 @@ int main(int argc, char **argv) {
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
     if (feof(f2)) break;
     for (i=0;i<FRAME_SIZE;i++) n[i] = tmp[i];
-    for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
+    for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + 3*n[i];
     for (i=0;i<FRAME_SIZE;i++) E += x[i]*(float)x[i];
     if (E > 1e9f) {
       vad_cnt=0;
@@ -378,10 +391,11 @@ int main(int argc, char **argv) {
     if (vad_cnt >= 10) vad = 0;
     else if (vad_cnt > 0) vad = 0.5f;
     else vad = 1.f;
-
+foo=0;
     frame_analysis(st, X, Ex, NULL, x);
     frame_analysis(noise_state, N, En, NULL, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-10+En[i]);
+foo=1;
     frame_analysis(noisy, Y, Ey, features, xn);
     //printf("%f %d\n", noise_state->last_gain, noise_state->last_period);
     for (i=0;i<NB_BANDS;i++) {
