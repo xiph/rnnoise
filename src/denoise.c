@@ -359,6 +359,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 
 int main(int argc, char **argv) {
   int i;
+  int count=0;
   float x[FRAME_SIZE];
   float n[FRAME_SIZE];
   float xn[FRAME_SIZE];
@@ -430,11 +431,18 @@ int main(int argc, char **argv) {
       g[i] = sqrt((Ex[i]+1e-15)/(Ey[i]+1e-15));
       if (g[i] > 1) g[i] = 1;
     }
-#if 1
+    count++;
+#if 0
     for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
     for (i=0;i<NB_BANDS;i++) printf("%f ", g[i]);
     for (i=0;i<NB_BANDS;i++) printf("%f ", Ln[i]);
     printf("%f\n", vad);
+#endif
+#if 1
+    fwrite(features, sizeof(float), NB_FEATURES, stdout);
+    fwrite(g, sizeof(float), NB_BANDS, stdout);
+    fwrite(Ln, sizeof(float), NB_BANDS, stdout);
+    fwrite(&vad, sizeof(float), 1, stdout);
 #endif
     //for (i=0;i<NB_BANDS;i++) scanf("%f", &g[i]);
     interp_band_gain(gf, g);
@@ -449,6 +457,7 @@ int main(int argc, char **argv) {
     for (i=0;i<FRAME_SIZE;i++) tmp[i] = xn[i];
     fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
   }
+  fprintf(stderr, "matrix size: %d x %d\n", count, NB_FEATURES + 2*NB_BANDS + 1);
   fclose(f1);
   fclose(f2);
   fclose(fout);
