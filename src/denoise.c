@@ -363,6 +363,8 @@ int main(int argc, char **argv) {
   float n[FRAME_SIZE];
   float xn[FRAME_SIZE];
   int vad_cnt=0;
+  int gain_change_count=0;
+  float speech_gain = 1, noise_gain = 1;
   FILE *f1, *f2, *fout;
   DenoiseState *st;
   DenoiseState *noise_state;
@@ -391,12 +393,19 @@ int main(int argc, char **argv) {
     short tmp[FRAME_SIZE];
     float vad=0;
     float E=0;
+    if (++gain_change_count > 101*300) {
+      speech_gain = pow(10., (-30+(rand()%40))/20.);
+      noise_gain = pow(10., (-30+(rand()%40))/20.);
+      if (rand()%10==0) noise_gain = 0;
+      noise_gain *= speech_gain;
+      gain_change_count = 0;
+    }
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (feof(f1)) break;
-    for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
+    for (i=0;i<FRAME_SIZE;i++) x[i] = speech_gain*tmp[i];
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
     if (feof(f2)) break;
-    for (i=0;i<FRAME_SIZE;i++) n[i] = tmp[i];
+    for (i=0;i<FRAME_SIZE;i++) n[i] = noise_gain*tmp[i];
     for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
     for (i=0;i<FRAME_SIZE;i++) E += x[i]*(float)x[i];
     if (E > 1e9f) {
