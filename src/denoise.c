@@ -50,6 +50,7 @@ typedef struct {
   int memid;
   float synthesis_mem[FRAME_SIZE];
   float pitch_buf[PITCH_BUF_SIZE];
+  float pitch_enh_buf[PITCH_BUF_SIZE];
   float last_gain;
   int last_period;
 } DenoiseState;
@@ -233,7 +234,10 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
   forward_transform(y, x);
+  compute_band_energy(Ey, y);
   if (1) {
+    float p[WINDOW_SIZE];
+    kiss_fft_cpx P[WINDOW_SIZE];
     float pitch_buf[PITCH_BUF_SIZE>>1];
     int pitch_index;
     float gain;
@@ -250,9 +254,16 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
             PITCH_FRAME_SIZE, &pitch_index, st->last_period, st->last_gain);
     st->last_period = pitch_index;
     st->last_gain = gain;
+
+    RNN_MOVE(st->pitch_enh_buf, &st->pitch_enh_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
+    for (i=0;i<FRAME_SIZE;i++)
+      st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i] = in[i] + gain*st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE+i-pitch_index];
+    RNN_COPY(p, &st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE], WINDOW_SIZE);
+    apply_window(p);
+    forward_transform(P, p);
+    
   }
-  if (Ey != NULL) {
-    compute_band_energy(Ey, y);
+  {
     if (features != NULL) {
       float *ceps_0, *ceps_1, *ceps_2;
       float spec_variability = 0;
