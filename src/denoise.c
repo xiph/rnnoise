@@ -369,13 +369,31 @@ void biquad(float *y, float mem[2], const float *x, const float *b, const float 
   }
 }
 
+
+static float uni_rand() {
+  return rand()/(double)RAND_MAX-.5;
+}
+
+static void rand_resp(float *a, float *b) {
+  a[0] = .75*uni_rand();
+  a[1] = .75*uni_rand();
+  b[0] = .75*uni_rand();
+  b[1] = .75*uni_rand();
+}
+
 int main(int argc, char **argv) {
   int i;
   int count=0;
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
+  float a_noise[2] = {0};
+  float b_noise[2] = {0};
+  float a_sig[2] = {0};
+  float b_sig[2] = {0};
   float mem_hp_x[2]={0};
   float mem_hp_n[2]={0};
+  float mem_resp_x[2]={0};
+  float mem_resp_n[2]={0};
   float x[FRAME_SIZE];
   float n[FRAME_SIZE];
   float xn[FRAME_SIZE];
@@ -416,6 +434,8 @@ int main(int argc, char **argv) {
       if (rand()%10==0) noise_gain = 0;
       noise_gain *= speech_gain;
       gain_change_count = 0;
+      rand_resp(a_noise, b_noise);
+      rand_resp(a_sig, b_sig);
     }
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (feof(f1)) break;
@@ -424,7 +444,9 @@ int main(int argc, char **argv) {
     if (feof(f2)) break;
     for (i=0;i<FRAME_SIZE;i++) n[i] = noise_gain*tmp[i];
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
+    biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
     biquad(n, mem_hp_n, n, b_hp, a_hp, FRAME_SIZE);
+    biquad(n, mem_resp_n, n, b_noise, a_noise, FRAME_SIZE);
     for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
     for (i=0;i<FRAME_SIZE;i++) E += x[i]*(float)x[i];
     if (E > 1e9f) {
