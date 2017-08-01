@@ -357,9 +357,25 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   frame_synthesis(st, out, y);
 }
 
+void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N) {
+  int i;
+  for (i=0;i<N;i++) {
+    float xi, yi;
+    xi = x[i];
+    yi = x[i] + mem[0];
+    mem[0] = mem[1] + (b[0]*(double)xi - a[0]*(double)yi);
+    mem[1] = (b[1]*(double)xi - a[1]*(double)yi);
+    y[i] = yi;
+  }
+}
+
 int main(int argc, char **argv) {
   int i;
   int count=0;
+  static const float a_hp[2] = {-1.99599, 0.99600};
+  static const float b_hp[2] = {-2, 1};
+  float mem_hp_x[2]={0};
+  float mem_hp_n[2]={0};
   float x[FRAME_SIZE];
   float n[FRAME_SIZE];
   float xn[FRAME_SIZE];
@@ -407,6 +423,8 @@ int main(int argc, char **argv) {
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
     if (feof(f2)) break;
     for (i=0;i<FRAME_SIZE;i++) n[i] = noise_gain*tmp[i];
+    biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
+    biquad(n, mem_hp_n, n, b_hp, a_hp, FRAME_SIZE);
     for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
     for (i=0;i<FRAME_SIZE;i++) E += x[i]*(float)x[i];
     if (E > 1e9f) {
