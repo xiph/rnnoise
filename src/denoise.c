@@ -55,6 +55,7 @@ typedef struct {
   float pitch_enh_buf[PITCH_BUF_SIZE];
   float last_gain;
   int last_period;
+  float mem_hp_x[2];
   RNNState rnn;
 } DenoiseState;
 
@@ -353,14 +354,7 @@ static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y)
   RNN_COPY(st->synthesis_mem, &x[FRAME_SIZE], FRAME_SIZE);
 }
 
-void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
-  kiss_fft_cpx y[FREQ_SIZE];
-  frame_analysis(st, y, NULL, NULL, in);
-  /* Do processing here. */
-  frame_synthesis(st, out, y);
-}
-
-void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N) {
+static void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N) {
   int i;
   for (i=0;i<N;i++) {
     float xi, yi;
@@ -372,6 +366,34 @@ void biquad(float *y, float mem[2], const float *x, const float *b, const float 
   }
 }
 
+
+void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
+  int i;
+  kiss_fft_cpx Y[FREQ_SIZE];
+  float x[FRAME_SIZE];
+  float Ey[NB_BANDS];
+  float features[NB_FEATURES];
+  float g[NB_BANDS];
+  float gf[FREQ_SIZE]={1};
+  float vad_prob;
+  static const float a_hp[2] = {-1.99599, 0.99600};
+  static const float b_hp[2] = {-2, 1};
+  biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
+  frame_analysis(st, Y, Ey, features, x);
+
+  compute_rnn(&st->rnn, g, &vad_prob, features);
+  interp_band_gain(gf, g);
+#if 1
+  for (i=0;i<FREQ_SIZE;i++) {
+    Y[i].r *= gf[i];
+    Y[i].i *= gf[i];
+  }
+#endif
+
+  frame_synthesis(st, out, Y);
+}
+
+#if 0
 
 static float uni_rand() {
   return rand()/(double)RAND_MAX-.5;
@@ -508,3 +530,33 @@ int main(int argc, char **argv) {
   fclose(fout);
   return 0;
 }
+
+#else
+
+int main(int argc, char **argv) {
+  int i;
+  float x[FRAME_SIZE];
+  FILE *f1, *fout;
+  DenoiseState *st;
+  st = rnnoise_create();
+  if (argc!=3) {
+    fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
+    return 1;
+  }
+  f1 = fopen(argv[1], "r");
+  fout = fopen(argv[2], "w");
+  while (1) {
+    short tmp[FRAME_SIZE];
+    fread(tmp, sizeof(short), FRAME_SIZE, f1);
+    if (feof(f1)) break;
+    for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
+    rnnoise_process_frame(st, x, x);
+    for (i=0;i<FRAME_SIZE;i++) tmp[i] = x[i];
+    fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
+  }
+  fclose(f1);
+  fclose(fout);
+  return 0;
+}
+
+#endif
