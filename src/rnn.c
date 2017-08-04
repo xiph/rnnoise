@@ -35,6 +35,7 @@
 #include "arch.h"
 #include "tansig_table.h"
 #include "rnn.h"
+#include "rnn_data.h"
 #include <stdio.h>
 
 static OPUS_INLINE float tansig_approx(float x)
@@ -91,13 +92,13 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
          sum += layer->input_weights[j*stride + i]*input[j];
       output[i] = WEIGHTS_SCALE*sum;
    }
-   if (layer->activation == activation_sigmoid) {
+   if (layer->activation == ACTIVATION_SIGMOID) {
       for (i=0;i<N;i++)
          output[i] = sigmoid_approx(output[i]);
-   } else if (layer->activation == activation_tanh) {
+   } else if (layer->activation == ACTIVATION_TANH) {
       for (i=0;i<N;i++)
          output[i] = tansig_approx(output[i]);
-   } else if (layer->activation == activation_relu) {
+   } else if (layer->activation == ACTIVATION_RELU) {
       for (i=0;i<N;i++)
          output[i] = relu(output[i]);
    } else {
@@ -144,9 +145,9 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
          sum += gru->input_weights[2*N + j*stride + i]*input[j];
       for (j=0;j<N;j++)
          sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
-      if (gru->activation == activation_sigmoid) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
-      else if (gru->activation == activation_tanh) sum = tansig_approx(WEIGHTS_SCALE*sum);
-      else if (gru->activation == activation_relu) sum = relu(WEIGHTS_SCALE*sum);
+      if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
+      else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
+      else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
       else *(int*)0=0;
       h[i] = z[i]*state[i] + (1-z[i])*sum;
    }
@@ -156,17 +157,6 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
 
 #if 1
 #define INPUT_SIZE 42
-#define DENSE_SIZE 12
-#define VAD_SIZE 12
-#define NOISE_SIZE 48
-#define DENOISE_SIZE 128
-
-extern const DenseLayer input_dense;
-extern const GRULayer vad_gru;
-extern const GRULayer noise_gru;
-extern const GRULayer denoise_gru;
-extern const DenseLayer denoise_output;
-extern const DenseLayer vad_output;
 
 int main() {
   float vad_state[MAX_NEURONS] = {0};
@@ -175,8 +165,8 @@ int main() {
   float dense_out[MAX_NEURONS];
   float noise_input[MAX_NEURONS*3];
   float denoise_input[MAX_NEURONS*3];
-  float noise_state[MAX_NEURONS] = {0};
-  float denoise_state[MAX_NEURONS] = {0};
+  float noise_state[NOISE_GRU_SIZE] = {0};
+  float denoise_state[DENOISE_GRU_SIZE] = {0};
   float gains[22];
   while (1)
   {
@@ -188,14 +178,14 @@ int main() {
     compute_gru(&vad_gru, vad_state, dense_out);
     compute_dense(&vad_output, vad_out, vad_state);
 #if 1
-    for (i=0;i<DENSE_SIZE;i++) noise_input[i] = dense_out[i];
-    for (i=0;i<VAD_SIZE;i++) noise_input[i+DENSE_SIZE] = vad_state[i];
-    for (i=0;i<INPUT_SIZE;i++) noise_input[i+DENSE_SIZE+VAD_SIZE] = input[i];
+    for (i=0;i<INPUT_DENSE_SIZE;i++) noise_input[i] = dense_out[i];
+    for (i=0;i<VAD_GRU_SIZE;i++) noise_input[i+INPUT_DENSE_SIZE] = vad_state[i];
+    for (i=0;i<INPUT_SIZE;i++) noise_input[i+INPUT_DENSE_SIZE+VAD_GRU_SIZE] = input[i];
     compute_gru(&noise_gru, noise_state, noise_input);
 
-    for (i=0;i<VAD_SIZE;i++) denoise_input[i] = vad_state[i];
-    for (i=0;i<NOISE_SIZE;i++) denoise_input[i+VAD_SIZE] = noise_state[i];
-    for (i=0;i<INPUT_SIZE;i++) denoise_input[i+VAD_SIZE+NOISE_SIZE] = input[i];
+    for (i=0;i<VAD_GRU_SIZE;i++) denoise_input[i] = vad_state[i];
+    for (i=0;i<NOISE_GRU_SIZE;i++) denoise_input[i+VAD_GRU_SIZE] = noise_state[i];
+    for (i=0;i<INPUT_SIZE;i++) denoise_input[i+VAD_GRU_SIZE+NOISE_GRU_SIZE] = input[i];
     compute_gru(&denoise_gru, denoise_state, denoise_input);
 
     compute_dense(&denoise_output, gains, denoise_state);

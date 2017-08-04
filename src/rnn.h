@@ -33,9 +33,9 @@
 
 #define MAX_NEURONS 128
 
-#define activation_tanh    0
-#define activation_sigmoid 1
-#define activation_relu    2
+#define ACTIVATION_TANH    0
+#define ACTIVATION_SIGMOID 1
+#define ACTIVATION_RELU    2
 
 typedef struct {
   const opus_int16 *bias;
