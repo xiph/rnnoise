@@ -159,15 +159,14 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
 #define INPUT_SIZE 42
 
 int main() {
-  float vad_state[MAX_NEURONS] = {0};
   float vad_out[MAX_NEURONS] = {0};
   float input[INPUT_SIZE];
   float dense_out[MAX_NEURONS];
   float noise_input[MAX_NEURONS*3];
   float denoise_input[MAX_NEURONS*3];
-  float noise_state[NOISE_GRU_SIZE] = {0};
-  float denoise_state[DENOISE_GRU_SIZE] = {0};
-  float gains[22];
+  float gains[DENOISE_OUTPUT_SIZE];
+  RNNState rnn;
+  RNN_CLEAR(&rnn, 1);
   while (1)
   {
     int i;
@@ -175,20 +174,20 @@ int main() {
     for (i=0;i<45;i++) scanf("%f", &vad_out[0]);
     if (feof(stdin)) break;
     compute_dense(&input_dense, dense_out, input);
-    compute_gru(&vad_gru, vad_state, dense_out);
-    compute_dense(&vad_output, vad_out, vad_state);
+    compute_gru(&vad_gru, rnn.vad_gru_state, dense_out);
+    compute_dense(&vad_output, vad_out, rnn.vad_gru_state);
 #if 1
     for (i=0;i<INPUT_DENSE_SIZE;i++) noise_input[i] = dense_out[i];
-    for (i=0;i<VAD_GRU_SIZE;i++) noise_input[i+INPUT_DENSE_SIZE] = vad_state[i];
+    for (i=0;i<VAD_GRU_SIZE;i++) noise_input[i+INPUT_DENSE_SIZE] = rnn.vad_gru_state[i];
     for (i=0;i<INPUT_SIZE;i++) noise_input[i+INPUT_DENSE_SIZE+VAD_GRU_SIZE] = input[i];
-    compute_gru(&noise_gru, noise_state, noise_input);
+    compute_gru(&noise_gru, rnn.noise_gru_state, noise_input);
 
-    for (i=0;i<VAD_GRU_SIZE;i++) denoise_input[i] = vad_state[i];
-    for (i=0;i<NOISE_GRU_SIZE;i++) denoise_input[i+VAD_GRU_SIZE] = noise_state[i];
+    for (i=0;i<VAD_GRU_SIZE;i++) denoise_input[i] = rnn.vad_gru_state[i];
+    for (i=0;i<NOISE_GRU_SIZE;i++) denoise_input[i+VAD_GRU_SIZE] = rnn.noise_gru_state[i];
     for (i=0;i<INPUT_SIZE;i++) denoise_input[i+VAD_GRU_SIZE+NOISE_GRU_SIZE] = input[i];
-    compute_gru(&denoise_gru, denoise_state, denoise_input);
+    compute_gru(&denoise_gru, rnn.denoise_gru_state, denoise_input);
 
-    compute_dense(&denoise_output, gains, denoise_state);
+    compute_dense(&denoise_output, gains, rnn.denoise_gru_state);
 
     for (i=0;i<22;i++) printf("%f ", gains[i]);
 #endif
