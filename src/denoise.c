@@ -5,6 +5,8 @@
 #include "common.h"
 #include <math.h>
 #include "pitch.h"
+#include "rnn.h"
+#include "rnn_data.h"
 
 #define FRAME_SIZE_SHIFT 2
 #define FRAME_SIZE (120<<FRAME_SIZE_SHIFT)
@@ -53,6 +55,7 @@ typedef struct {
   float pitch_enh_buf[PITCH_BUF_SIZE];
   float last_gain;
   int last_period;
+  RNNState rnn;
 } DenoiseState;
 
 #if SMOOTH_BANDS
@@ -427,6 +430,7 @@ int main(int argc, char **argv) {
     float gf[FREQ_SIZE]={1};
     short tmp[FRAME_SIZE];
     float vad=0;
+    float vad_prob;
     float E=0;
     if (++gain_change_count > 101*300) {
       speech_gain = pow(10., (-30+(rand()%40))/20.);
@@ -478,12 +482,13 @@ int main(int argc, char **argv) {
     for (i=0;i<NB_BANDS;i++) printf("%f ", Ln[i]);
     printf("%f\n", vad);
 #endif
-#if 1
+#if 0
     fwrite(features, sizeof(float), NB_FEATURES, stdout);
     fwrite(g, sizeof(float), NB_BANDS, stdout);
     fwrite(Ln, sizeof(float), NB_BANDS, stdout);
     fwrite(&vad, sizeof(float), 1, stdout);
 #endif
+    compute_rnn(&noisy->rnn, g, &vad_prob, features);
     //for (i=0;i<NB_BANDS;i++) scanf("%f", &g[i]);
     interp_band_gain(gf, g);
 #if 1

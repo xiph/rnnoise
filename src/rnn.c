@@ -155,7 +155,6 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
       state[i] = h[i];
 }
 
-#if 1
 #define INPUT_SIZE 42
 
 void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
@@ -178,6 +177,7 @@ void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
   compute_dense(&denoise_output, gains, rnn->denoise_gru_state);
 }
 
+#if 0
 int main() {
   float vad_out[MAX_NEURONS] = {0};
   float input[INPUT_SIZE];
