@@ -255,7 +255,7 @@ DenoiseState *rnnoise_create() {
 }
 
 
-static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *features, const float *in) {
+static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *features, const float *in) {
   float x[WINDOW_SIZE];
   int i;
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
@@ -302,10 +302,20 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
   }
   {
     if (features != NULL) {
+      float E;
       float *ceps_0, *ceps_1, *ceps_2;
       float spec_variability = 0;
       float Ly[NB_BANDS];
-      for (i=0;i<NB_BANDS;i++) Ly[i] = log10(1e-10+Ey[i]);
+      E = 0;
+      for (i=0;i<NB_BANDS;i++) {
+        Ly[i] = log10(1e-2+Ey[i]);
+        E += Ey[i];
+      }
+      if (E < 0.04) {
+        /* If there's no audio, avoid messing up the state. */
+        RNN_CLEAR(features, NB_FEATURES);
+        return 1;
+      }
       dct(features, Ly);
       features[0] -= 12;
       features[1] -= 4;
@@ -343,6 +353,7 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *
       features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
     }
   }
+  return 0;
 }
 
 static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
@@ -376,19 +387,22 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   float g[NB_BANDS];
   float gf[FREQ_SIZE]={1};
   float vad_prob;
+  int silence;
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
   biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
-  frame_analysis(st, Y, Ey, features, x);
+  silence = frame_analysis(st, Y, Ey, features, x);
 
-  compute_rnn(&st->rnn, g, &vad_prob, features);
-  interp_band_gain(gf, g);
+  if (1||!silence) {
+    compute_rnn(&st->rnn, g, &vad_prob, features);
+    interp_band_gain(gf, g);
 #if 1
-  for (i=0;i<FREQ_SIZE;i++) {
-    Y[i].r *= gf[i];
-    Y[i].i *= gf[i];
-  }
+    for (i=0;i<FREQ_SIZE;i++) {
+      Y[i].r *= gf[i];
+      Y[i].i *= gf[i];
+    }
 #endif
+  }
 
   frame_synthesis(st, out, Y);
 }
@@ -504,7 +518,7 @@ int main(int argc, char **argv) {
     for (i=0;i<NB_BANDS;i++) printf("%f ", Ln[i]);
     printf("%f\n", vad);
 #endif
-#if 0
+#if 1
     fwrite(features, sizeof(float), NB_FEATURES, stdout);
     fwrite(g, sizeof(float), NB_BANDS, stdout);
     fwrite(Ln, sizeof(float), NB_BANDS, stdout);
