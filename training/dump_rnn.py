@@ -74,10 +74,10 @@ for i, layer in enumerate(model.layers):
     if len(layer.get_weights()) > 2:
         layer_list.append(layer.name)
 
-hf.write('typedef struct {\n')
+hf.write('struct RNNState {\n')
 for i, name in enumerate(layer_list):
     hf.write('  float {}_state[{}_SIZE];\n'.format(name, name.upper())) 
-hf.write('} RNNState;\n')
+hf.write('};\n')
 
 hf.write('\n\n#endif\n')
 
