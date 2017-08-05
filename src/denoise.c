@@ -407,7 +407,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   frame_synthesis(st, out, Y);
 }
 
-#if 0
+#if 1
 
 static float uni_rand() {
   return rand()/(double)RAND_MAX-.5;
@@ -469,10 +469,11 @@ int main(int argc, char **argv) {
     float vad_prob;
     float E=0;
     if (++gain_change_count > 101*300) {
-      speech_gain = pow(10., (-30+(rand()%40))/20.);
+      speech_gain = pow(10., (-40+(rand()%60))/20.);
       noise_gain = pow(10., (-30+(rand()%40))/20.);
       if (rand()%10==0) noise_gain = 0;
       noise_gain *= speech_gain;
+      if (rand()%10==0) speech_gain = 0;
       gain_change_count = 0;
       rand_resp(a_noise, b_noise);
       rand_resp(a_sig, b_sig);
@@ -524,6 +525,7 @@ int main(int argc, char **argv) {
     fwrite(Ln, sizeof(float), NB_BANDS, stdout);
     fwrite(&vad, sizeof(float), 1, stdout);
 #endif
+#if 0
     compute_rnn(&noisy->rnn, g, &vad_prob, features);
     //for (i=0;i<NB_BANDS;i++) scanf("%f", &g[i]);
     interp_band_gain(gf, g);
@@ -537,6 +539,7 @@ int main(int argc, char **argv) {
 
     for (i=0;i<FRAME_SIZE;i++) tmp[i] = xn[i];
     fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
+#endif
   }
   fprintf(stderr, "matrix size: %d x %d\n", count, NB_FEATURES + 2*NB_BANDS + 1);
   fclose(f1);
