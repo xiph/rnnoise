@@ -33,6 +33,10 @@
 
 #define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
 
+
+#define TRAINING 0
+
+
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
   0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100
@@ -311,7 +315,7 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *f
         Ly[i] = log10(1e-2+Ey[i]);
         E += Ey[i];
       }
-      if (0&&E < 0.04) {
+      if (!TRAINING && E < 0.04) {
         /* If there's no audio, avoid messing up the state. */
         RNN_CLEAR(features, NB_FEATURES);
         return 1;
@@ -353,7 +357,7 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *f
       features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
     }
   }
-  return E < 0.1;
+  return TRAINING && E < 0.1;
 }
 
 static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
@@ -393,7 +397,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
   silence = frame_analysis(st, Y, Ey, features, x);
 
-  if (1||!silence) {
+  if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
     interp_band_gain(gf, g);
 #if 1
@@ -407,7 +411,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   frame_synthesis(st, out, Y);
 }
 
-#if 1
+#if TRAINING
 
 static float uni_rand() {
   return rand()/(double)RAND_MAX-.5;
