@@ -19,37 +19,40 @@ import h5py
 from keras import backend as K
 import numpy as np
 
-import tensorflow as tf
-from keras.backend.tensorflow_backend import set_session
-config = tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = 0.42
-set_session(tf.Session(config=config))
+#import tensorflow as tf
+#from keras.backend.tensorflow_backend import set_session
+#config = tf.ConfigProto()
+#config.gpu_options.per_process_gpu_memory_fraction = 0.42
+#set_session(tf.Session(config=config))
 
 
 def my_crossentropy(y_true, y_pred):
     return K.mean(2*K.abs(y_true-0.5) * K.binary_crossentropy(y_pred, y_true), axis=-1)
 
+def mymask(y_true):
+    return K.minimum(y_true+1., 1.)
+
 def msse(y_true, y_pred):
-    return K.mean(K.square(K.sqrt(y_pred) - K.sqrt(y_true)), axis=-1)
+    return K.mean(mymask(y_true) * K.square(K.sqrt(y_pred) - K.sqrt(y_true)), axis=-1)
 
 def mycost(y_true, y_pred):
-    return K.mean(K.square(K.sqrt(y_pred) - K.sqrt(y_true)) + 0.01*K.binary_crossentropy(y_pred, y_true), axis=-1)
+    return K.mean(mymask(y_true) * (K.square(K.sqrt(y_pred) - K.sqrt(y_true)) + 0.01*K.binary_crossentropy(y_pred, y_true)), axis=-1)
 
 def my_accuracy(y_true, y_pred):
     return K.mean(2*K.abs(y_true-0.5) * K.equal(y_true, K.round(y_pred)), axis=-1)
 
-reg = 0.0001
+reg = 0.000001
 
 print('Build model...')
 main_input = Input(shape=(None, 42), name='main_input')
-tmp = Dense(12, activation='tanh', name='input_dense')(main_input)
-vad_gru = GRU(12, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='vad_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg))(tmp)
+tmp = Dense(24, activation='tanh', name='input_dense')(main_input)
+vad_gru = GRU(24, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='vad_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg))(tmp)
 vad_output = Dense(1, activation='sigmoid', name='vad_output')(vad_gru)
 noise_input = keras.layers.concatenate([tmp, vad_gru, main_input])
 noise_gru = GRU(48, activation='relu', recurrent_activation='sigmoid', return_sequences=True, name='noise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg))(noise_input)
 denoise_input = keras.layers.concatenate([vad_gru, noise_gru, main_input])
 
-denoise_gru = GRU(128, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='denoise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg))(denoise_input)
+denoise_gru = GRU(96, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='denoise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg))(denoise_input)
 
 denoise_output = Dense(22, activation='sigmoid', name='denoise_output')(denoise_gru)
 
@@ -60,10 +63,10 @@ model.compile(loss=[mycost, my_crossentropy],
               optimizer='adam', loss_weights=[10, 0.5])
 
 
-batch_size = 256
+batch_size = 32
 
 print('Loading data...')
-with h5py.File('denoise_data4.h5', 'r') as hf:
+with h5py.File('denoise_data6.h5', 'r') as hf:
     all_data = hf['data'][:]
 print('done.')
 
@@ -92,6 +95,6 @@ print(len(x_train), 'train sequences. x shape =', x_train.shape, 'y shape = ', y
 print('Train...')
 model.fit(x_train, [y_train, vad_train],
           batch_size=batch_size,
-          epochs=300,
+          epochs=60,
           validation_split=0.1)
-model.save("newweights3c.hdf5")
+model.save("newweights6a2a.hdf5")
