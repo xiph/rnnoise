@@ -266,49 +266,45 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *f
   float *ceps_0, *ceps_1, *ceps_2;
   float spec_variability = 0;
   float Ly[NB_BANDS];
+  float p[WINDOW_SIZE];
+  kiss_fft_cpx P[WINDOW_SIZE];
+  float Ep[NB_BANDS], Exp[NB_BANDS];
+  float pitch_buf[PITCH_BUF_SIZE>>1];
+  int pitch_index;
+  float gain;
+  float *(pre[1]);
+  float tmp[NB_BANDS];
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
   for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
   forward_transform(X, x);
   compute_band_energy(Ex, X);
-  if (1) {
-    float p[WINDOW_SIZE];
-    kiss_fft_cpx P[WINDOW_SIZE];
-    float Ep[NB_BANDS], Exp[NB_BANDS];
-    float pitch_buf[PITCH_BUF_SIZE>>1];
-    int pitch_index;
-    float gain;
-    float *(pre[1]);
-    RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
-    RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
-    pre[0] = &st->pitch_buf[0];
-    pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1);
-    pitch_search(pitch_buf+(PITCH_MAX_PERIOD>>1), pitch_buf, PITCH_FRAME_SIZE,
-                 PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD, &pitch_index);
-    pitch_index = PITCH_MAX_PERIOD-pitch_index;
+  RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
+  RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
+  pre[0] = &st->pitch_buf[0];
+  pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1);
+  pitch_search(pitch_buf+(PITCH_MAX_PERIOD>>1), pitch_buf, PITCH_FRAME_SIZE,
+               PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD, &pitch_index);
+  pitch_index = PITCH_MAX_PERIOD-pitch_index;
 
-    gain = remove_doubling(pitch_buf, PITCH_MAX_PERIOD, PITCH_MIN_PERIOD,
-            PITCH_FRAME_SIZE, &pitch_index, st->last_period, st->last_gain);
-    st->last_period = pitch_index;
-    st->last_gain = gain;
-    for (i=0;i<WINDOW_SIZE;i++)
-      p[i] = st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE-pitch_index+i];
-    apply_window(p);
-    forward_transform(P, p);
-    compute_band_energy(Ep, P);
-    compute_band_corr(Exp, X, P);
-    for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
-    if (features) {
-      float tmp[NB_BANDS];
-      dct(tmp, Exp);
-      for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
-      features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
-      features[NB_BANDS+2*NB_DELTA_CEPS+1] -= 0.9;
-      features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
-    }
-  }
+  gain = remove_doubling(pitch_buf, PITCH_MAX_PERIOD, PITCH_MIN_PERIOD,
+          PITCH_FRAME_SIZE, &pitch_index, st->last_period, st->last_gain);
+  st->last_period = pitch_index;
+  st->last_gain = gain;
+  for (i=0;i<WINDOW_SIZE;i++)
+    p[i] = st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE-pitch_index+i];
+  apply_window(p);
+  forward_transform(P, p);
+  compute_band_energy(Ep, P);
+  compute_band_corr(Exp, X, P);
+  for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
   if (features == NULL) return 1;
+  dct(tmp, Exp);
+  for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
+  features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
+  features[NB_BANDS+2*NB_DELTA_CEPS+1] -= 0.9;
+  features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
   for (i=0;i<NB_BANDS;i++) {
     Ly[i] = log10(1e-2+Ex[i]);
     E += Ex[i];
