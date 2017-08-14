@@ -259,15 +259,16 @@ DenoiseState *rnnoise_create() {
 }
 
 
-static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *features, const float *in) {
+static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *features, const float *in) {
   float x[WINDOW_SIZE];
   int i;
+  float E = 0;
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
   for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
-  forward_transform(y, x);
-  compute_band_energy(Ey, y);
+  forward_transform(X, x);
+  compute_band_energy(Ex, X);
   if (1) {
     float p[WINDOW_SIZE];
     kiss_fft_cpx P[WINDOW_SIZE];
@@ -293,8 +294,8 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *f
     apply_window(p);
     forward_transform(P, p);
     compute_band_energy(Ep, P);
-    compute_band_corr(Exp, y, P);
-    for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ey[i]*Ep[i]);
+    compute_band_corr(Exp, X, P);
+    for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
     if (features) {
       float tmp[NB_BANDS];
       dct(tmp, Exp);
@@ -304,7 +305,6 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *f
       features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
     }
   }
-  float E = 0;
   {
     if (features != NULL) {
       float *ceps_0, *ceps_1, *ceps_2;
@@ -312,8 +312,8 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *y, float *Ey, float *f
       float Ly[NB_BANDS];
       E = 0;
       for (i=0;i<NB_BANDS;i++) {
-        Ly[i] = log10(1e-2+Ey[i]);
-        E += Ey[i];
+        Ly[i] = log10(1e-2+Ex[i]);
+        E += Ex[i];
       }
       if (!TRAINING && E < 0.04) {
         /* If there's no audio, avoid messing up the state. */
