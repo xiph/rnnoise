@@ -15,9 +15,9 @@ import numpy as np
 def printVector(f, vector, name):
     v = np.reshape(vector, (-1));
     #print('static const float ', name, '[', len(v), '] = \n', file=f)
-    f.write('static const opus_int16 {}[{}] = {{\n   '.format(name, len(v)))
+    f.write('static const rnn_weight {}[{}] = {{\n   '.format(name, len(v)))
     for i in range(0, len(v)):
-        f.write('{}'.format(int(round(8192*v[i]))))
+        f.write('{}'.format(min(127, int(round(256*v[i])))))
         if (i!=len(v)-1):
             f.write(',')
         else:
@@ -50,11 +50,14 @@ def printLayer(f, hf, layer):
         hf.write('extern const DenseLayer {};\n\n'.format(name));
 
 
+def foo(c, name):
+    return 1
+
 def mean_squared_sqrt_error(y_true, y_pred):
     return K.mean(K.square(K.sqrt(y_pred) - K.sqrt(y_true)), axis=-1)
 
 
-model = load_model(sys.argv[1], custom_objects={'msse': mean_squared_sqrt_error, 'mean_squared_sqrt_error': mean_squared_sqrt_error, 'my_crossentropy': mean_squared_sqrt_error, 'mycost': mean_squared_sqrt_error})
+model = load_model(sys.argv[1], custom_objects={'msse': mean_squared_sqrt_error, 'mean_squared_sqrt_error': mean_squared_sqrt_error, 'my_crossentropy': mean_squared_sqrt_error, 'mycost': mean_squared_sqrt_error, 'WeightClip': foo})
 
 weights = model.get_weights()
 

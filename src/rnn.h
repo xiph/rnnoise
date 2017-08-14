@@ -29,7 +29,7 @@
 
 #include "opus_types.h"
 
-#define WEIGHTS_SCALE (1.f/8192)
+#define WEIGHTS_SCALE (1.f/256)
 
 #define MAX_NEURONS 128
 
@@ -37,18 +37,20 @@
 #define ACTIVATION_SIGMOID 1
 #define ACTIVATION_RELU    2
 
+typedef signed char rnn_weight;
+
 typedef struct {
-  const opus_int16 *bias;
-  const opus_int16 *input_weights;
+  const rnn_weight *bias;
+  const rnn_weight *input_weights;
   int nb_inputs;
   int nb_neurons;
   int activation;
 } DenseLayer;
 
 typedef struct {
-  const opus_int16 *bias;
-  const opus_int16 *input_weights;
-  const opus_int16 *recurrent_weights;
+  const rnn_weight *bias;
+  const rnn_weight *input_weights;
+  const rnn_weight *recurrent_weights;
   int nb_inputs;
   int nb_neurons;
   int activation;
