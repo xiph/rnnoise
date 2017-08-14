@@ -263,6 +263,9 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *f
   float x[WINDOW_SIZE];
   int i;
   float E = 0;
+  float *ceps_0, *ceps_1, *ceps_2;
+  float spec_variability = 0;
+  float Ly[NB_BANDS];
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
   for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
@@ -305,58 +308,51 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *f
       features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
     }
   }
-  {
-    if (features != NULL) {
-      float *ceps_0, *ceps_1, *ceps_2;
-      float spec_variability = 0;
-      float Ly[NB_BANDS];
-      E = 0;
-      for (i=0;i<NB_BANDS;i++) {
-        Ly[i] = log10(1e-2+Ex[i]);
-        E += Ex[i];
-      }
-      if (!TRAINING && E < 0.04) {
-        /* If there's no audio, avoid messing up the state. */
-        RNN_CLEAR(features, NB_FEATURES);
-        return 1;
-      }
-      dct(features, Ly);
-      features[0] -= 12;
-      features[1] -= 4;
-      ceps_0 = st->cepstral_mem[st->memid];
-      ceps_1 = (st->memid < 1) ? st->cepstral_mem[CEPS_MEM+st->memid-1] : st->cepstral_mem[st->memid-1];
-      ceps_2 = (st->memid < 2) ? st->cepstral_mem[CEPS_MEM+st->memid-2] : st->cepstral_mem[st->memid-2];
-      for (i=0;i<NB_BANDS;i++) ceps_0[i] = features[i];
-      st->memid++;
-      for (i=0;i<NB_DELTA_CEPS;i++) {
-        features[i] = ceps_0[i] + ceps_1[i] + ceps_2[i];
-        features[NB_BANDS+i] = ceps_0[i] - ceps_2[i];
-        features[NB_BANDS+NB_DELTA_CEPS+i] =  ceps_0[i] - 2*ceps_1[i] + ceps_2[i];
-      }
-      /* Spectral variability features. */
-      if (st->memid == CEPS_MEM) st->memid = 0;
-      for (i=0;i<CEPS_MEM;i++)
-      {
-        int j;
-        float mindist = 1e15f;
-        for (j=0;j<CEPS_MEM;j++)
-        {
-          int k;
-          float dist=0;
-          for (k=0;k<NB_BANDS;k++)
-          {
-            float tmp;
-            tmp = st->cepstral_mem[i][k] - st->cepstral_mem[j][k];
-            dist += tmp*tmp;
-          }
-          if (j!=i)
-            mindist = MIN32(mindist, dist);
-        }
-        spec_variability += mindist;
-      }
-      features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
-    }
+  if (features == NULL) return 1;
+  for (i=0;i<NB_BANDS;i++) {
+    Ly[i] = log10(1e-2+Ex[i]);
+    E += Ex[i];
   }
+  if (!TRAINING && E < 0.04) {
+    /* If there's no audio, avoid messing up the state. */
+    RNN_CLEAR(features, NB_FEATURES);
+    return 1;
+  }
+  dct(features, Ly);
+  features[0] -= 12;
+  features[1] -= 4;
+  ceps_0 = st->cepstral_mem[st->memid];
+  ceps_1 = (st->memid < 1) ? st->cepstral_mem[CEPS_MEM+st->memid-1] : st->cepstral_mem[st->memid-1];
+  ceps_2 = (st->memid < 2) ? st->cepstral_mem[CEPS_MEM+st->memid-2] : st->cepstral_mem[st->memid-2];
+  for (i=0;i<NB_BANDS;i++) ceps_0[i] = features[i];
+  st->memid++;
+  for (i=0;i<NB_DELTA_CEPS;i++) {
+    features[i] = ceps_0[i] + ceps_1[i] + ceps_2[i];
+    features[NB_BANDS+i] = ceps_0[i] - ceps_2[i];
+    features[NB_BANDS+NB_DELTA_CEPS+i] =  ceps_0[i] - 2*ceps_1[i] + ceps_2[i];
+  }
+  /* Spectral variability features. */
+  if (st->memid == CEPS_MEM) st->memid = 0;
+  for (i=0;i<CEPS_MEM;i++)
+  {
+    int j;
+    float mindist = 1e15f;
+    for (j=0;j<CEPS_MEM;j++)
+    {
+      int k;
+      float dist=0;
+      for (k=0;k<NB_BANDS;k++)
+      {
+        float tmp;
+        tmp = st->cepstral_mem[i][k] - st->cepstral_mem[j][k];
+        dist += tmp*tmp;
+      }
+      if (j!=i)
+        mindist = MIN32(mindist, dist);
+    }
+    spec_variability += mindist;
+  }
+  features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
   return TRAINING && E < 0.1;
 }
 
