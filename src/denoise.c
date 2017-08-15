@@ -258,9 +258,18 @@ DenoiseState *rnnoise_create() {
   return st;
 }
 
-
-static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P, float *Ex, float *Ep, float *features, const float *in) {
+static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in) {
+  int i;
   float x[WINDOW_SIZE];
+  RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
+  for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
+  RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
+  apply_window(x);
+  forward_transform(X, x);
+  compute_band_energy(Ex, X);
+}
+
+static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P, float *Ex, float *Ep, float *features, const float *in) {
   int i;
   float E = 0;
   float *ceps_0, *ceps_1, *ceps_2;
@@ -273,13 +282,7 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P, fl
   float gain;
   float *(pre[1]);
   float tmp[NB_BANDS];
-  RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
-  for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
-  RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
-  apply_window(x);
-  forward_transform(X, x);
-  compute_band_energy(Ex, X);
-  if (features == NULL) return 1;
+  frame_analysis(st, X, Ex, in);
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
   pre[0] = &st->pitch_buf[0];
@@ -387,7 +390,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
   biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
-  silence = frame_analysis(st, X, P, Ex, Ep, features, x);
+  silence = compute_frame_features(st, X, P, Ex, Ep, features, x);
 
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
@@ -499,10 +502,10 @@ int main(int argc, char **argv) {
     else if (vad_cnt > 0) vad = 0.5f;
     else vad = 1.f;
 
-    frame_analysis(st, X, NULL, Ex, NULL, NULL, x);
-    frame_analysis(noise_state, N, NULL, En, NULL, NULL, n);
+    frame_analysis(st, X, Ex, x);
+    frame_analysis(noise_state, N, En, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-2+En[i]);
-    int silence = frame_analysis(noisy, Y, P, Ey, Ep, features, xn);
+    int silence = compute_frame_features(noisy, Y, P, Ey, Ep, features, xn);
     //printf("%f %d\n", noisy->last_gain, noisy->last_period);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-2)/(Ey[i]+1e-2));
