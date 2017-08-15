@@ -259,7 +259,7 @@ DenoiseState *rnnoise_create() {
 }
 
 
-static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *features, const float *in) {
+static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P, float *Ex, float *Ep, float *features, const float *in) {
   float x[WINDOW_SIZE];
   int i;
   float E = 0;
@@ -267,8 +267,7 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *f
   float spec_variability = 0;
   float Ly[NB_BANDS];
   float p[WINDOW_SIZE];
-  kiss_fft_cpx P[WINDOW_SIZE];
-  float Ep[NB_BANDS], Exp[NB_BANDS];
+  float Exp[NB_BANDS];
   float pitch_buf[PITCH_BUF_SIZE>>1];
   int pitch_index;
   float gain;
@@ -280,6 +279,7 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *f
   apply_window(x);
   forward_transform(X, x);
   compute_band_energy(Ex, X);
+  if (features == NULL) return 1;
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
   pre[0] = &st->pitch_buf[0];
@@ -299,7 +299,6 @@ static int frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, float *f
   compute_band_energy(Ep, P);
   compute_band_corr(Exp, X, P);
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
-  if (features == NULL) return 1;
   dct(tmp, Exp);
   for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
   features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
@@ -376,9 +375,10 @@ static void biquad(float *y, float mem[2], const float *x, const float *b, const
 
 void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   int i;
-  kiss_fft_cpx Y[FREQ_SIZE];
+  kiss_fft_cpx X[FREQ_SIZE];
+  kiss_fft_cpx P[WINDOW_SIZE];
   float x[FRAME_SIZE];
-  float Ey[NB_BANDS];
+  float Ex[NB_BANDS], Ep[NB_BANDS];
   float features[NB_FEATURES];
   float g[NB_BANDS];
   float gf[FREQ_SIZE]={1};
@@ -387,20 +387,20 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
   biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
-  silence = frame_analysis(st, Y, Ey, features, x);
+  silence = frame_analysis(st, X, P, Ex, Ep, features, x);
 
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
-      Y[i].r *= gf[i];
-      Y[i].i *= gf[i];
+      X[i].r *= gf[i];
+      X[i].i *= gf[i];
     }
 #endif
   }
 
-  frame_synthesis(st, out, Y);
+  frame_synthesis(st, out, X);
 }
 
 #if TRAINING
@@ -454,8 +454,8 @@ int main(int argc, char **argv) {
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
   }
   while (1) {
-    kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE], N[FREQ_SIZE];
-    float Ex[NB_BANDS], Ey[NB_BANDS], En[NB_BANDS];
+    kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE], N[FREQ_SIZE], P[WINDOW_SIZE];
+    float Ex[NB_BANDS], Ey[NB_BANDS], En[NB_BANDS], Ep[NB_BANDS];
     float Ln[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
@@ -499,10 +499,10 @@ int main(int argc, char **argv) {
     else if (vad_cnt > 0) vad = 0.5f;
     else vad = 1.f;
 
-    frame_analysis(st, X, Ex, NULL, x);
-    frame_analysis(noise_state, N, En, NULL, n);
+    frame_analysis(st, X, NULL, Ex, NULL, NULL, x);
+    frame_analysis(noise_state, N, NULL, En, NULL, NULL, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-2+En[i]);
-    int silence = frame_analysis(noisy, Y, Ey, features, xn);
+    int silence = frame_analysis(noisy, Y, P, Ey, Ep, features, xn);
     //printf("%f %d\n", noisy->last_gain, noisy->last_period);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-2)/(Ey[i]+1e-2));
