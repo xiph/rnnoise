@@ -269,14 +269,14 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
   compute_band_energy(Ex, X);
 }
 
-static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P, float *Ex, float *Ep, float *features, const float *in) {
+static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
+                                  float *Ex, float *Ep, float *Exp, float *features, const float *in) {
   int i;
   float E = 0;
   float *ceps_0, *ceps_1, *ceps_2;
   float spec_variability = 0;
   float Ly[NB_BANDS];
   float p[WINDOW_SIZE];
-  float Exp[NB_BANDS];
   float pitch_buf[PITCH_BUF_SIZE>>1];
   int pitch_index;
   float gain;
@@ -382,6 +382,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   kiss_fft_cpx P[WINDOW_SIZE];
   float x[FRAME_SIZE];
   float Ex[NB_BANDS], Ep[NB_BANDS];
+  float Exp[NB_BANDS];
   float features[NB_FEATURES];
   float g[NB_BANDS];
   float gf[FREQ_SIZE]={1};
@@ -390,7 +391,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
   biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
-  silence = compute_frame_features(st, X, P, Ex, Ep, features, x);
+  silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
 
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
@@ -459,6 +460,7 @@ int main(int argc, char **argv) {
   while (1) {
     kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE], N[FREQ_SIZE], P[WINDOW_SIZE];
     float Ex[NB_BANDS], Ey[NB_BANDS], En[NB_BANDS], Ep[NB_BANDS];
+    float Exp[NB_BANDS];
     float Ln[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
@@ -505,7 +507,7 @@ int main(int argc, char **argv) {
     frame_analysis(st, X, Ex, x);
     frame_analysis(noise_state, N, En, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-2+En[i]);
-    int silence = compute_frame_features(noisy, Y, P, Ey, Ep, features, xn);
+    int silence = compute_frame_features(noisy, Y, P, Ey, Ep, Exp, features, xn);
     //printf("%f %d\n", noisy->last_gain, noisy->last_period);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ex[i]+1e-2)/(Ey[i]+1e-2));
