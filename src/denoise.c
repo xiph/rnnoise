@@ -5,6 +5,7 @@
 #include "common.h"
 #include <math.h>
 #include "pitch.h"
+#include "arch.h"
 #include "rnn.h"
 #include "rnn_data.h"
 
@@ -375,6 +376,41 @@ static void biquad(float *y, float mem[2], const float *x, const float *b, const
   }
 }
 
+void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
+                  const float *Exp, const float *g) {
+  int i;
+  float r[NB_BANDS];
+  float rf[FREQ_SIZE] = {0};
+  for (i=0;i<NB_BANDS;i++) {
+#if 0
+    if (Exp[i]>g[i]) r[i] = 1;
+    else r[i] = Exp[i]*(1-g[i])/(.001 + g[i]*(1-Exp[i]));
+    r[i] = MIN16(1, MAX16(0, r[i]));
+#else
+    if (Exp[i]>g[i]) r[i] = 1;
+    else r[i] = SQUARE(Exp[i])*(1-SQUARE(g[i]))/(.001 + SQUARE(g[i])*(1-SQUARE(Exp[i])));
+    r[i] = sqrt(MIN16(1, MAX16(0, r[i])));
+#endif
+    r[i] *= sqrt(Ex[i]/(1e-8+Ep[i]));
+  }
+  interp_band_gain(rf, r);
+  for (i=0;i<FREQ_SIZE;i++) {
+    X[i].r += rf[i]*P[i].r;
+    X[i].i += rf[i]*P[i].i;
+  }
+  float newE[NB_BANDS];
+  compute_band_energy(newE, X);
+  float norm[NB_BANDS];
+  float normf[FREQ_SIZE]={0};
+  for (i=0;i<NB_BANDS;i++) {
+    norm[i] = sqrt(Ex[i]/(1e-8+newE[i]));
+  }
+  interp_band_gain(normf, norm);
+  for (i=0;i<FREQ_SIZE;i++) {
+    X[i].r *= normf[i];
+    X[i].i *= normf[i];
+  }
+}
 
 void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   int i;
@@ -395,6 +431,7 @@ void rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
+    pitch_filter(X, P, Ex, Ep, Exp, g);
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
@@ -504,13 +541,14 @@ int main(int argc, char **argv) {
     else if (vad_cnt > 0) vad = 0.5f;
     else vad = 1.f;
 
-    frame_analysis(st, X, Ex, x);
+    frame_analysis(st, Y, Ey, x);
     frame_analysis(noise_state, N, En, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-2+En[i]);
-    int silence = compute_frame_features(noisy, Y, P, Ey, Ep, Exp, features, xn);
+    int silence = compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, xn);
+    pitch_filter(X, P, Ex, Ep, Exp, g);
     //printf("%f %d\n", noisy->last_gain, noisy->last_period);
     for (i=0;i<NB_BANDS;i++) {
-      g[i] = sqrt((Ex[i]+1e-2)/(Ey[i]+1e-2));
+      g[i] = sqrt((Ey[i]+1e-2)/(Ex[i]+1e-2));
       if (g[i] > 1) g[i] = 1;
       if (silence) g[i] = -1;
     }
@@ -529,15 +567,14 @@ int main(int argc, char **argv) {
 #endif
 #if 0
     compute_rnn(&noisy->rnn, g, &vad_prob, features);
-    //for (i=0;i<NB_BANDS;i++) scanf("%f", &g[i]);
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
-      Y[i].r *= gf[i];
-      Y[i].i *= gf[i];
+      X[i].r *= gf[i];
+      X[i].i *= gf[i];
     }
 #endif
-    frame_synthesis(noisy, xn, Y);
+    frame_synthesis(noisy, xn, X);
 
     for (i=0;i<FRAME_SIZE;i++) tmp[i] = xn[i];
     fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
