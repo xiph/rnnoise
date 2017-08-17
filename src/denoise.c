@@ -1,9 +1,40 @@
+/* Copyright (c) 2017 Mozilla */
+/*
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+
+   - Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+   - Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR
+   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "kiss_fft.h"
 #include "common.h"
 #include <math.h>
+#include "rnnoise.h"
 #include "pitch.h"
 #include "arch.h"
 #include "rnn.h"
@@ -35,8 +66,9 @@
 #define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
 
 
+#ifndef TRAINING
 #define TRAINING 0
-
+#endif
 
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -51,7 +83,7 @@ typedef struct {
   float dct_table[NB_BANDS*NB_BANDS];
 } CommonState;
 
-typedef struct {
+struct DenoiseState {
   float analysis_mem[FRAME_SIZE];
   float cepstral_mem[CEPS_MEM][NB_BANDS];
   int memid;
@@ -62,7 +94,7 @@ typedef struct {
   int last_period;
   float mem_hp_x[2];
   RNNState rnn;
-} DenoiseState;
+};
 
 #if SMOOTH_BANDS
 void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
@@ -247,6 +279,10 @@ static void apply_window(float *x) {
   }
 }
 
+int rnnoise_get_size() {
+  return sizeof(DenoiseState);
+}
+
 int rnnoise_init(DenoiseState *st) {
   memset(st, 0, sizeof(*st));
   return 0;
@@ -254,9 +290,13 @@ int rnnoise_init(DenoiseState *st) {
 
 DenoiseState *rnnoise_create() {
   DenoiseState *st;
-  st = malloc(sizeof(DenoiseState));
+  st = malloc(rnnoise_get_size());
   rnnoise_init(st);
   return st;
+}
+
+void rnnoise_destroy(DenoiseState *st) {
+  free(st);
 }
 
 static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in) {
@@ -583,34 +623,6 @@ int main(int argc, char **argv) {
   fprintf(stderr, "matrix size: %d x %d\n", count, NB_FEATURES + 2*NB_BANDS + 1);
   fclose(f1);
   fclose(f2);
-  fclose(fout);
-  return 0;
-}
-
-#else
-
-int main(int argc, char **argv) {
-  int i;
-  float x[FRAME_SIZE];
-  FILE *f1, *fout;
-  DenoiseState *st;
-  st = rnnoise_create();
-  if (argc!=3) {
-    fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
-    return 1;
-  }
-  f1 = fopen(argv[1], "r");
-  fout = fopen(argv[2], "w");
-  while (1) {
-    short tmp[FRAME_SIZE];
-    fread(tmp, sizeof(short), FRAME_SIZE, f1);
-    if (feof(f1)) break;
-    for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
-    rnnoise_process_frame(st, x, x);
-    for (i=0;i<FRAME_SIZE;i++) tmp[i] = x[i];
-    fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
-  }
-  fclose(f1);
   fclose(fout);
   return 0;
 }
