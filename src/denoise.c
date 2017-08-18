@@ -301,6 +301,7 @@ void rnnoise_destroy(DenoiseState *st) {
 
 #if TRAINING
 int lowpass = FREQ_SIZE;
+int band_lp = NB_BANDS;
 #endif
 
 static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in) {
@@ -570,6 +571,12 @@ int main(int argc, char **argv) {
       rand_resp(a_noise, b_noise);
       rand_resp(a_sig, b_sig);
       lowpass = FREQ_SIZE * 3000./24000. * pow(10., rand()/(double)RAND_MAX);
+      for (i=0;i<NB_BANDS;i++) {
+        if (eband5ms[i]<<FRAME_SIZE_SHIFT > lowpass) {
+          band_lp = i;
+          break;
+        }
+      }
     }
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (feof(f1)) break;
@@ -605,7 +612,7 @@ int main(int argc, char **argv) {
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ey[i]+1e-2)/(Ex[i]+1e-2));
       if (g[i] > 1) g[i] = 1;
-      if (silence) g[i] = -1;
+      if (silence || i > band_lp) g[i] = -1;
     }
     count++;
 #if 0
