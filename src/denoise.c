@@ -323,6 +323,7 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   float gain;
   float *(pre[1]);
   float tmp[NB_BANDS];
+  float follow, logMax;
   frame_analysis(st, X, Ex, in);
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
@@ -348,8 +349,13 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
   features[NB_BANDS+2*NB_DELTA_CEPS+1] -= 0.9;
   features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
+  logMax = -2;
+  follow = -2;
   for (i=0;i<NB_BANDS;i++) {
     Ly[i] = log10(1e-2+Ex[i]);
+    Ly[i] = MAX16(logMax-6, MAX16(follow-1.2, Ly[i]));
+    logMax = MAX16(logMax, Ly[i]);
+    follow = MAX16(follow-1, Ly[i]);
     E += Ex[i];
   }
   if (!TRAINING && E < 0.04) {
