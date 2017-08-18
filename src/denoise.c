@@ -299,6 +299,10 @@ void rnnoise_destroy(DenoiseState *st) {
   free(st);
 }
 
+#if TRAINING
+int lowpass = FREQ_SIZE;
+#endif
+
 static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in) {
   int i;
   float x[WINDOW_SIZE];
@@ -307,6 +311,10 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
   apply_window(x);
   forward_transform(X, x);
+#if TRAINING
+  for (i=lowpass;i<FREQ_SIZE;i++)
+    X[i].r = X[i].i = 0;
+#endif
   compute_band_energy(Ex, X);
 }
 
@@ -561,6 +569,7 @@ int main(int argc, char **argv) {
       gain_change_count = 0;
       rand_resp(a_noise, b_noise);
       rand_resp(a_sig, b_sig);
+      lowpass = FREQ_SIZE * 3000./24000. * pow(10., rand()/(double)RAND_MAX);
     }
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (feof(f1)) break;
