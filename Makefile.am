@@ -16,7 +16,6 @@ noinst_HEADERS = src/arch.h  \
 		 src/pitch.h  \
 		 src/rnn_data.h  \
 		 src/rnn.h  \
-		 src/static_modes_float.h  \
 		 src/tansig_table.h
 
 librnnoise_la_SOURCES = \
