@@ -563,7 +563,7 @@ int main(int argc, char **argv) {
     float E=0;
     if (++gain_change_count > 101*300) {
       speech_gain = pow(10., (-40+(rand()%60))/20.);
-      noise_gain = pow(10., (-30+(rand()%40))/20.);
+      noise_gain = pow(10., (-30+(rand()%50))/20.);
       if (rand()%10==0) noise_gain = 0;
       noise_gain *= speech_gain;
       if (rand()%10==0) speech_gain = 0;

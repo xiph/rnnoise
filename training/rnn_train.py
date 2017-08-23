@@ -38,7 +38,7 @@ def msse(y_true, y_pred):
     return K.mean(mymask(y_true) * K.square(K.sqrt(y_pred) - K.sqrt(y_true)), axis=-1)
 
 def mycost(y_true, y_pred):
-    return K.mean(mymask(y_true) * (K.square(K.sqrt(y_pred) - K.sqrt(y_true)) + 0.01*K.binary_crossentropy(y_pred, y_true)), axis=-1)
+    return K.mean(mymask(y_true) * (10*K.square(K.square(K.sqrt(y_pred) - K.sqrt(y_true))) + K.square(K.sqrt(y_pred) - K.sqrt(y_true)) + 0.01*K.binary_crossentropy(y_pred, y_true)), axis=-1)
 
 def my_accuracy(y_true, y_pred):
     return K.mean(2*K.abs(y_true-0.5) * K.equal(y_true, K.round(y_pred)), axis=-1)
@@ -82,7 +82,7 @@ model.compile(loss=[mycost, my_crossentropy],
 batch_size = 32
 
 print('Loading data...')
-with h5py.File('denoise_data6.h5', 'r') as hf:
+with h5py.File('denoise_data9.h5', 'r') as hf:
     all_data = hf['data'][:]
 print('done.')
 
@@ -113,4 +113,4 @@ model.fit(x_train, [y_train, vad_train],
           batch_size=batch_size,
           epochs=120,
           validation_split=0.1)
-model.save("newweights6c.hdf5")
+model.save("newweights9i.hdf5")
