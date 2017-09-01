@@ -176,24 +176,3 @@ void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
   compute_gru(&denoise_gru, rnn->denoise_gru_state, denoise_input);
   compute_dense(&denoise_output, gains, rnn->denoise_gru_state);
 }
-
-#if 0
-int main() {
-  float vad_out[MAX_NEURONS] = {0};
-  float input[INPUT_SIZE];
-  float gains[DENOISE_OUTPUT_SIZE];
-  RNNState rnn;
-  RNN_CLEAR(&rnn, 1);
-  while (1)
-  {
-    int i;
-    for (i=0;i<INPUT_SIZE;i++) scanf("%f", &input[i]);
-    for (i=0;i<45;i++) scanf("%f", &vad_out[0]);
-    if (feof(stdin)) break;
-    compute_rnn(&rnn, gains, vad_out, input);
-
-    for (i=0;i<22;i++) printf("%f ", gains[i]);
-    printf("%f\n", vad_out[0]);
-  }
-}
-#endif
