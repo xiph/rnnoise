@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
     for (i=0;i<FRAME_SIZE;i++) tmp[i] = x[i];
     fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
   }
+  rnnoise_destroy(st);
   fclose(f1);
   fclose(fout);
   return 0;
