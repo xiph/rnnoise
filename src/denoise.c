@@ -567,7 +567,7 @@ int main(int argc, char **argv) {
       noise_gain = pow(10., (-30+(rand()%50))/20.);
       if (rand()%10==0) noise_gain = 0;
       noise_gain *= speech_gain;
-      if (rand()%10==0) speech_gain = 0;
+      if (rand()%4==0) speech_gain = 0;
       gain_change_count = 0;
       rand_resp(a_noise, b_noise);
       rand_resp(a_sig, b_sig);
@@ -579,21 +579,30 @@ int main(int argc, char **argv) {
         }
       }
     }
-    fread(tmp, sizeof(short), FRAME_SIZE, f1);
-    if (feof(f1)) break;
-    for (i=0;i<FRAME_SIZE;i++) x[i] = speech_gain*tmp[i];
-    fread(tmp, sizeof(short), FRAME_SIZE, f2);
-    if (feof(f2)) break;
-    for (i=0;i<FRAME_SIZE;i++) n[i] = noise_gain*tmp[i];
+    if (speech_gain != 0) {
+      fread(tmp, sizeof(short), FRAME_SIZE, f1);
+      if (feof(f1)) break;
+      for (i=0;i<FRAME_SIZE;i++) x[i] = speech_gain*tmp[i];
+      for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];
+    } else {
+      for (i=0;i<FRAME_SIZE;i++) x[i] = 0;
+      E = 0;
+    }
+    if (noise_gain!=0) {
+      fread(tmp, sizeof(short), FRAME_SIZE, f2);
+      if (feof(f2)) break;
+      for (i=0;i<FRAME_SIZE;i++) n[i] = noise_gain*tmp[i];
+    } else {
+      for (i=0;i<FRAME_SIZE;i++) n[i] = 0;
+    }
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
     biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
     biquad(n, mem_hp_n, n, b_hp, a_hp, FRAME_SIZE);
     biquad(n, mem_resp_n, n, b_noise, a_noise, FRAME_SIZE);
     for (i=0;i<FRAME_SIZE;i++) xn[i] = x[i] + n[i];
-    for (i=0;i<FRAME_SIZE;i++) E += x[i]*(float)x[i];
-    if (E > 1e9f*speech_gain*speech_gain) {
+    if (E > 1e9f) {
       vad_cnt=0;
-    } else if (E > 1e8f*speech_gain*speech_gain) {
+    } else if (E > 1e8f) {
       vad_cnt -= 5;
       if (vad_cnt < 0) vad_cnt = 0;
     } else {
@@ -611,9 +620,10 @@ int main(int argc, char **argv) {
     pitch_filter(X, P, Ex, Ep, Exp, g);
     //printf("%f %d\n", noisy->last_gain, noisy->last_period);
     for (i=0;i<NB_BANDS;i++) {
-      g[i] = sqrt((Ey[i]+1e-2)/(Ex[i]+1e-2));
+      g[i] = sqrt((Ey[i]+1e-3)/(Ex[i]+1e-3));
       if (g[i] > 1) g[i] = 1;
       if (silence || i > band_lp) g[i] = -1;
+      if (Ey[i] < 3e-3 && Ex[i] < 3e-3) g[i] = -1;
     }
     count++;
 #if 0
