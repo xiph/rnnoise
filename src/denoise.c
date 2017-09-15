@@ -624,6 +624,7 @@ int main(int argc, char **argv) {
       if (g[i] > 1) g[i] = 1;
       if (silence || i > band_lp) g[i] = -1;
       if (Ey[i] < 3e-3 && Ex[i] < 3e-3) g[i] = -1;
+      if (vad==0 && noise_gain==0) g[i] = -1;
     }
     count++;
 #if 0
