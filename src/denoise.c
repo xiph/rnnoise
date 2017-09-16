@@ -562,12 +562,12 @@ int main(int argc, char **argv) {
     float vad=0;
     float vad_prob;
     float E=0;
-    if (++gain_change_count > 101*300) {
+    if (++gain_change_count > 2821) {
       speech_gain = pow(10., (-40+(rand()%60))/20.);
       noise_gain = pow(10., (-30+(rand()%50))/20.);
       if (rand()%10==0) noise_gain = 0;
       noise_gain *= speech_gain;
-      if (rand()%4==0) speech_gain = 0;
+      if (rand()%10==0) speech_gain = 0;
       gain_change_count = 0;
       rand_resp(a_noise, b_noise);
       rand_resp(a_sig, b_sig);
