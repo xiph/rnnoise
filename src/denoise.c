@@ -562,6 +562,7 @@ int main(int argc, char **argv) {
     float vad=0;
     float vad_prob;
     float E=0;
+    if (count==35000000) break;
     if (++gain_change_count > 2821) {
       speech_gain = pow(10., (-40+(rand()%60))/20.);
       noise_gain = pow(10., (-30+(rand()%50))/20.);
@@ -581,7 +582,10 @@ int main(int argc, char **argv) {
     }
     if (speech_gain != 0) {
       fread(tmp, sizeof(short), FRAME_SIZE, f1);
-      if (feof(f1)) break;
+      if (feof(f1)) {
+        rewind(f1);
+        fread(tmp, sizeof(short), FRAME_SIZE, f1);
+      }
       for (i=0;i<FRAME_SIZE;i++) x[i] = speech_gain*tmp[i];
       for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];
     } else {
@@ -590,7 +594,10 @@ int main(int argc, char **argv) {
     }
     if (noise_gain!=0) {
       fread(tmp, sizeof(short), FRAME_SIZE, f2);
-      if (feof(f2)) break;
+      if (feof(f2)) {
+        rewind(f2);
+        fread(tmp, sizeof(short), FRAME_SIZE, f2);
+      }
       for (i=0;i<FRAME_SIZE;i++) n[i] = noise_gain*tmp[i];
     } else {
       for (i=0;i<FRAME_SIZE;i++) n[i] = 0;
