@@ -362,9 +362,9 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {
     Ly[i] = log10(1e-2+Ex[i]);
-    Ly[i] = MAX16(logMax-6, MAX16(follow-1.2, Ly[i]));
+    Ly[i] = MAX16(logMax-7, MAX16(follow-1.5, Ly[i]));
     logMax = MAX16(logMax, Ly[i]);
-    follow = MAX16(follow-1, Ly[i]);
+    follow = MAX16(follow-1.5, Ly[i]);
     E += Ex[i];
   }
   if (!TRAINING && E < 0.04) {
@@ -562,7 +562,7 @@ int main(int argc, char **argv) {
     float vad=0;
     float vad_prob;
     float E=0;
-    if (count==35000000) break;
+    if (count==50000000) break;
     if (++gain_change_count > 2821) {
       speech_gain = pow(10., (-40+(rand()%60))/20.);
       noise_gain = pow(10., (-30+(rand()%50))/20.);
@@ -572,7 +572,7 @@ int main(int argc, char **argv) {
       gain_change_count = 0;
       rand_resp(a_noise, b_noise);
       rand_resp(a_sig, b_sig);
-      lowpass = FREQ_SIZE * 3000./24000. * pow(10., rand()/(double)RAND_MAX);
+      lowpass = FREQ_SIZE * 3000./24000. * pow(50., rand()/(double)RAND_MAX);
       for (i=0;i<NB_BANDS;i++) {
         if (eband5ms[i]<<FRAME_SIZE_SHIFT > lowpass) {
           band_lp = i;
@@ -611,11 +611,14 @@ int main(int argc, char **argv) {
       vad_cnt=0;
     } else if (E > 1e8f) {
       vad_cnt -= 5;
-      if (vad_cnt < 0) vad_cnt = 0;
-    } else {
+    } else if (E > 1e7f) {
       vad_cnt++;
-      if (vad_cnt > 15) vad_cnt = 15;
+    } else {
+      vad_cnt+=2;
     }
+    if (vad_cnt < 0) vad_cnt = 0;
+    if (vad_cnt > 15) vad_cnt = 15;
+
     if (vad_cnt >= 10) vad = 0;
     else if (vad_cnt > 0) vad = 0.5f;
     else vad = 1.f;
