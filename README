@@ -1,6 +1,7 @@
 RNNoise is a noise suppression library based on a recurrent neural network
 
 To compile, just type:
+% ./autogen.sh
 % ./configure
 % make
 
