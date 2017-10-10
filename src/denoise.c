@@ -93,6 +93,7 @@ struct DenoiseState {
   float last_gain;
   int last_period;
   float mem_hp_x[2];
+  float lastg[NB_BANDS];
   RNNState rnn;
 };
 
@@ -487,6 +488,11 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
     pitch_filter(X, P, Ex, Ep, Exp, g);
+    for (i=0;i<NB_BANDS;i++) {
+      float alpha = .6f;
+      g[i] = MAX16(g[i], alpha*st->lastg[i]);
+      st->lastg[i] = g[i];
+    }
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
