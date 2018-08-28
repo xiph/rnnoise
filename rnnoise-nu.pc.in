@@ -5,10 +5,10 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: rnnoise
-Description: RNN-based noise suppression
+Name: rnnoise-nu
+Description: RNN-based noise suppression, improved
 Version: @PACKAGE_VERSION@
 Conflicts:
-Libs: -L${libdir} -lrnnoise
+Libs: -L${libdir} -lrnnoise-nu
 Libs.private: @lrintf_lib@
 Cflags: -I${includedir}/

@@ -108,8 +108,8 @@ AM_CONDITIONAL([HAVE_DOXYGEN], [test "$HAVE_DOXYGEN" = "yes"])
 
 AC_CONFIG_FILES([
   Makefile
-  rnnoise.pc
-  rnnoise-uninstalled.pc
+  rnnoise-nu.pc
+  rnnoise-nu-uninstalled.pc
   doc/Doxyfile
 ])
 AC_CONFIG_HEADERS([config.h])

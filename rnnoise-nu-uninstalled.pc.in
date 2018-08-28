@@ -5,9 +5,9 @@ exec_prefix=
 libdir=${pcfiledir}/.libs
 includedir=${pcfiledir}/@top_srcdir@/include
 
-Name: rnnoise uninstalled
-Description: RNN-based noise suppression (not installed)
+Name: rnnoise-nu uninstalled
+Description: RNN-based noise suppression, improved (not installed)
 Version: @PACKAGE_VERSION@
 Conflicts:
-Libs: ${libdir}/librnnoise.la @lrintf_lib@
+Libs: ${libdir}/librnnoise-nu.la @lrintf_lib@
 Cflags: -I${includedir}
