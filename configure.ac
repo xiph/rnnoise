@@ -31,16 +31,14 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_DEFINE([RNNOISE_BUILD], [], [This is a build of the library])
 
 dnl Library versioning for libtool.
-dnl Please update these for releases.
-dnl CURRENT, REVISION, AGE
-dnl - library source changed -> increment REVISION
-dnl - interfaces added/removed/changed -> increment CURRENT, REVISION = 0
-dnl - interfaces added -> increment AGE
-dnl - interfaces removed -> AGE = 0
+dnl For some inane reason, in .so.major.minor.revision:
+dnl - major = CURRENT-AGE
+dnl - minor = AGE
+dnl - revision = REVISION
 
-OP_LT_CURRENT=4
-OP_LT_REVISION=1
-OP_LT_AGE=4
+OP_LT_CURRENT=1
+OP_LT_REVISION=0
+OP_LT_AGE=0
 
 AC_SUBST(OP_LT_CURRENT)
 AC_SUBST(OP_LT_REVISION)
