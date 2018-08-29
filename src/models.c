@@ -1,4 +1,4 @@
-/* Copyright (c) 2017 Mozilla */
+/* Copyright (c) Gregor Richards */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -24,45 +24,41 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef RNNOISE_NU_H
-#define RNNOISE_NU_H 1
-
-#include <stdio.h>
-
-
-#ifndef RNNOISE_EXPORT
-# if defined(WIN32)
-#  if defined(RNNOISE_BUILD) && defined(DLL_EXPORT)
-#   define RNNOISE_EXPORT __declspec(dllexport)
-#  else
-#   define RNNOISE_EXPORT
-#  endif
-# elif defined(__GNUC__) && defined(RNNOISE_BUILD)
-#  define RNNOISE_EXPORT __attribute__ ((visibility ("default")))
-# else
-#  define RNNOISE_EXPORT
-# endif
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
-typedef struct DenoiseState DenoiseState;
-typedef struct RNNModel RNNModel;
+#include <string.h>
 
-RNNOISE_EXPORT int rnnoise_get_size();
+#include "rnnoise-nu.h"
 
-RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
+/* This file is just a list of the built-in models and a way of fetching them.
+ * Nothing fancy. */
 
-RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);
+static const char *model_names[] = {
+    "orig",
+    "cb",
+    NULL
+};
 
-RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
+extern const struct RNNModel model_orig, model_cb;
 
-RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
+static const struct RNNModel *models[] = {
+    &model_orig,
+    &model_cb
+};
 
-RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
+const char **rnnoise_models()
+{
+    return model_names;
+}
 
-RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
-
-RNNOISE_EXPORT const char **rnnoise_models(void);
-
-RNNOISE_EXPORT RNNModel *rnnoise_get_model(const char *name);
-
-#endif
+RNNModel *rnnoise_get_model(const char *name)
+{
+    int i;
+    for (i = 0; model_names[i]; i++) {
+        if (!strcmp(name, model_names[i]))
+            return (RNNModel *) models[i];
+    }
+    return NULL;
+}

@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-AM_CFLAGS = -I$(top_srcdir)/include $(DEPS_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src $(DEPS_CFLAGS)
 
 dist_doc_DATA = COPYING AUTHORS README
 
@@ -22,7 +22,9 @@ librnnoise_nu_la_SOURCES = \
 	src/denoise.c \
 	src/rnn.c \
 	src/rnn_data.c \
+	src/models/cb.c \
 	src/rnn_reader.c \
+	src/models.c \
 	src/pitch.c \
 	src/kiss_fft.c \
 	src/celt_lpc.c
