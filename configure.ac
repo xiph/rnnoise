@@ -1,23 +1,14 @@
 # autoconf source script for generating configure
 
-dnl The package_version file will be automatically synced to the git revision
-dnl by the update_version script when configured in the repository, but will
-dnl remain constant in tarball releases unless it is manually edited.
-m4_define([CURRENT_VERSION],
-          m4_esyscmd([ ./update_version 2>/dev/null || true
-                       if test -e package_version; then
-                           . ./package_version
-                           printf "$PACKAGE_VERSION"
-                       else
-                           printf "unknown"
-                       fi ]))
-
-AC_INIT([rnnoise],[CURRENT_VERSION],[jmvalin@jmvalin.ca])
+AC_INIT([rnnoise-nu],[1.0],[gregor.richards@uwaterloo.ca])
 AC_CONFIG_SRCDIR([src/denoise.c])
+AC_CONFIG_AUX_DIR([scripts])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
+
+m4_include([m4/lean.m4])
 
 AM_INIT_AUTOMAKE([1.11 foreign no-define dist-zip subdir-objects])
 AM_MAINTAINER_MODE([enable])
@@ -43,25 +34,6 @@ OP_LT_AGE=0
 AC_SUBST(OP_LT_CURRENT)
 AC_SUBST(OP_LT_REVISION)
 AC_SUBST(OP_LT_AGE)
-
-CC_CHECK_CFLAGS_APPEND(
-  [-pedantic -Wall -Wextra -Wno-sign-compare -Wno-parentheses -Wno-long-long])
-
-# Platform-specific tweaks
-case $host in
-  *-mingw*)
-    # -std=c89 causes some warnings under mingw.
-    CC_CHECK_CFLAGS_APPEND([-U__STRICT_ANSI__])
-    # We need WINNT>=0x501 (WindowsXP) for getaddrinfo/freeaddrinfo.
-    # It's okay to define this even when HTTP support is disabled, as it only
-    #  affects header declarations, not linking (unless we actually use some
-    #  XP-only functions).
-    AC_DEFINE_UNQUOTED(_WIN32_WINNT,0x501,
-     [We need at least WindowsXP for getaddrinfo/freeaddrinfo])
-    host_mingw=true
-    ;;
-esac
-AM_CONDITIONAL(OP_WIN32, test "$host_mingw" = "true")
 
 AC_ARG_ENABLE([assertions],
   AS_HELP_STRING([--enable-assertions], [Enable assertions in code]),,
