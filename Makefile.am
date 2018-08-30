@@ -93,40 +93,4 @@ uninstall-local:
 
 endif
 
-# We check this every time make is run, with configure.ac being touched to
-# trigger an update of the build system files if update_version changes the
-# current PACKAGE_VERSION (or if package_version was modified manually by a
-# user with either AUTO_UPDATE=no or no update_version script present - the
-# latter being the normal case for tarball releases).
-#
-# We can't just add the package_version file to CONFIGURE_DEPENDENCIES since
-# simply running autoconf will not actually regenerate configure for us when
-# the content of that file changes (due to autoconf dependency checking not
-# knowing about that without us creating yet another file for it to include).
-#
-# The MAKECMDGOALS check is a gnu-make'ism, but will degrade 'gracefully' for
-# makes that don't support it.  The only loss of functionality is not forcing
-# an update of package_version for `make dist` if AUTO_UPDATE=no, but that is
-# unlikely to be a real problem for any real user.
-$(top_srcdir)/configure.ac: force
-	@case "$(MAKECMDGOALS)" in \
-	    dist-hook)                             exit 0       ;; \
-	    dist-* | dist | distcheck | distclean) _arg=release ;; \
-	esac; \
-	if ! $(top_srcdir)/update_version $$_arg 2> /dev/null; then \
-	    if [ ! -e $(top_srcdir)/package_version ]; then \
-		echo 'PACKAGE_VERSION="unknown"' > $(top_srcdir)/package_version; \
-	    fi; \
-	    . $(top_srcdir)/package_version || exit 1; \
-	    [ "$(PACKAGE_VERSION)" != "$$PACKAGE_VERSION" ] || exit 0; \
-	fi; \
-	touch $@
-
-force:
-
-# Create a minimal package_version file when make dist is run.
-dist-hook:
-	echo 'PACKAGE_VERSION="$(PACKAGE_VERSION)"' > $(top_distdir)/package_version
-
-
 .PHONY: rnnoise-nu install-rnnoise-nu docs install-docs
