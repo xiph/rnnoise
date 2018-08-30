@@ -82,7 +82,7 @@ model.compile(loss=[mycost, my_crossentropy],
 batch_size = 32
 
 print('Loading data...')
-with h5py.File('denoise_data9.h5', 'r') as hf:
+with h5py.File('training.h5', 'r') as hf:
     all_data = hf['data'][:]
 print('done.')
 
@@ -113,4 +113,4 @@ model.fit(x_train, [y_train, vad_train],
           batch_size=batch_size,
           epochs=120,
           validation_split=0.1)
-model.save("newweights9i.hdf5")
+model.save("weights.hdf5")
