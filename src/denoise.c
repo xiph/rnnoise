@@ -65,6 +65,9 @@
 
 #define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
 
+/* We don't allow max attenuation to be more than 60dB */
+#define MIN_MAX_ATTENUATION 0.000001f
+
 
 #ifndef TRAINING
 #define TRAINING 0
@@ -99,6 +102,8 @@ struct DenoiseState {
   float mem_hp_x[2];
   float lastg[NB_BANDS];
   RNNState rnn;
+
+  float max_attenuation;
 };
 
 #if SMOOTH_BANDS
@@ -507,6 +512,26 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
       g[i] = MAX16(g[i], alpha*st->lastg[i]);
       st->lastg[i] = g[i];
     }
+
+    /* Apply maximum attenuation (minimum value) */
+    if (st->max_attenuation) {
+      float min = 1, mult;
+      for (i=0;i<NB_BANDS;i++) {
+        if (g[i] < min) min = g[i];
+      }
+      if (min < st->max_attenuation) {
+        if (min < MIN_MAX_ATTENUATION)
+          min = MIN_MAX_ATTENUATION;
+        mult = st->max_attenuation / min;
+        for (i=0;i<NB_BANDS;i++) {
+          if (g[i] < MIN_MAX_ATTENUATION) g[i] = MIN_MAX_ATTENUATION;
+          g[i] *= mult;
+          if (g[i] > 1) g[i] = 1;
+          st->lastg[i] = g[i];
+        }
+      }
+    }
+
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
@@ -518,6 +543,18 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 
   frame_synthesis(st, out, X);
   return vad_prob;
+}
+
+void rnnoise_set_param(DenoiseState *st, int param, float value)
+{
+  switch (param) {
+    case RNNOISE_PARAM_MAX_ATTENUATION:
+      if ((value > MIN_MAX_ATTENUATION && value <= 1) || value == 0)
+        st->max_attenuation = value;
+      else
+        st->max_attenuation = MIN_MAX_ATTENUATION;
+      break;
+  }
 }
 
 #if TRAINING

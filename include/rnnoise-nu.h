@@ -65,4 +65,9 @@ RNNOISE_EXPORT const char **rnnoise_models(void);
 
 RNNOISE_EXPORT RNNModel *rnnoise_get_model(const char *name);
 
+/* Parameters to a denoise state */
+#define RNNOISE_PARAM_MAX_ATTENUATION           1
+
+RNNOISE_EXPORT void rnnoise_set_param(DenoiseState *st, int param, float value);
+
 #endif

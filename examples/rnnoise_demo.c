@@ -24,36 +24,72 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 #include "rnnoise-nu.h"
 
 #define FRAME_SIZE 480
 
 int main(int argc, char **argv) {
-  int i;
+  int i, ci;
   int first = 1;
+  int channels;
   float x[FRAME_SIZE];
-  FILE *f1, *fout;
-  DenoiseState *st;
-  st = rnnoise_create(NULL);
-  if (argc!=3) {
-    fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
+  short *tmp;
+  RNNModel *model = NULL;
+  DenoiseState **sts;
+  float max_attenuation;
+  if (argc < 3) {
+    fprintf(stderr, "usage: %s <channels> <max attenuation dB> [model]\n", argv[0]);
     return 1;
   }
-  f1 = fopen(argv[1], "r");
-  fout = fopen(argv[2], "w");
+
+  channels = atoi(argv[1]);
+  if (channels < 1) channels = 1;
+  max_attenuation = pow(10, -atof(argv[2])/10);
+
+  if (argc >= 4) {
+      model = rnnoise_get_model(argv[3]);
+      if (!model) {
+          fprintf(stderr, "Model not found!\n");
+          return 1;
+      }
+  }
+
+  sts = malloc(channels * sizeof(DenoiseState *));
+  if (!sts) {
+    perror("malloc");
+    return 1;
+  }
+  tmp = malloc(channels * FRAME_SIZE * sizeof(short));
+  if (!tmp) {
+      perror("malloc");
+      return 1;
+  }
+  for (i = 0; i < channels; i++) {
+    sts[i] = rnnoise_create(model);
+    rnnoise_set_param(sts[i], RNNOISE_PARAM_MAX_ATTENUATION, max_attenuation);
+  }
+
   while (1) {
-    short tmp[FRAME_SIZE];
-    fread(tmp, sizeof(short), FRAME_SIZE, f1);
-    if (feof(f1)) break;
-    for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
-    rnnoise_process_frame(st, x, x);
-    for (i=0;i<FRAME_SIZE;i++) tmp[i] = x[i];
-    if (!first) fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
+    fread(tmp, sizeof(short), channels * FRAME_SIZE, stdin);
+    if (feof(stdin)) break;
+
+    for (ci = 0; ci < channels; ci++) {
+        for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i*channels+ci];
+        rnnoise_process_frame(sts[ci], x, x);
+        for (i=0;i<FRAME_SIZE;i++) tmp[i*channels+ci] = x[i];
+    }
+
+    if (!first) fwrite(tmp, sizeof(short), channels * FRAME_SIZE, stdout);
     first = 0;
   }
-  rnnoise_destroy(st);
-  fclose(f1);
-  fclose(fout);
+
+  for (i = 0; i < channels; i++)
+    rnnoise_destroy(sts[i]);
+  free(tmp);
+  free(sts);
   return 0;
 }

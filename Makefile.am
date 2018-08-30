@@ -38,7 +38,7 @@ noinst_PROGRAMS = examples/rnnoise_nu_demo
 endif
 
 examples_rnnoise_nu_demo_SOURCES = examples/rnnoise_demo.c
-examples_rnnoise_nu_demo_LDADD = librnnoise-nu.la
+examples_rnnoise_nu_demo_LDADD = librnnoise-nu.la $(LIBM)
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = rnnoise-nu.pc
