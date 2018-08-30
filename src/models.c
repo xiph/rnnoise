@@ -38,14 +38,19 @@
 static const char *model_names[] = {
     "orig",
     "cb",
+    "mp",
     NULL
 };
 
-extern const struct RNNModel model_orig, model_cb;
+extern const struct RNNModel
+    model_orig,
+    model_cb,
+    model_mp;
 
 static const struct RNNModel *models[] = {
     &model_orig,
-    &model_cb
+    &model_cb,
+    &model_mp
 };
 
 const char **rnnoise_models()
