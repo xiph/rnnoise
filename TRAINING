@@ -8,4 +8,4 @@
 
 (4) ./rnn_train.py
 
-(5) ./dump_rnn.py weights.hdf5 ../src/rnn_data.c ../src/rnn_data.h
+(5) ./dump_rnn.py weights.hdf5 rnn_data.c rnn_data.rnnn name

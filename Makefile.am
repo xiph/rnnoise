@@ -24,6 +24,8 @@ librnnoise_nu_la_SOURCES = \
 	src/rnn_data.c \
 	src/models/cb.c \
 	src/models/mp.c \
+	src/models/bd.c \
+	src/models/lq.c \
 	src/rnn_reader.c \
 	src/models.c \
 	src/pitch.c \
