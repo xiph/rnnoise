@@ -39,20 +39,23 @@ int main(int argc, char **argv) {
   int channels;
   float x[FRAME_SIZE];
   short *tmp;
+  int sample_rate;
   RNNModel *model = NULL;
   DenoiseState **sts;
   float max_attenuation;
-  if (argc < 3) {
-    fprintf(stderr, "usage: %s <channels> <max attenuation dB> [model]\n", argv[0]);
+  if (argc < 4) {
+    fprintf(stderr, "usage: %s <sample rate> <channels> <max attenuation dB> [model]\n", argv[0]);
     return 1;
   }
 
-  channels = atoi(argv[1]);
+  sample_rate = atoi(argv[1]);
+  if (sample_rate <= 0) sample_rate = 48000;
+  channels = atoi(argv[2]);
   if (channels < 1) channels = 1;
-  max_attenuation = pow(10, -atof(argv[2])/10);
+  max_attenuation = pow(10, -atof(argv[3])/10);
 
-  if (argc >= 4) {
-      model = rnnoise_get_model(argv[3]);
+  if (argc >= 5) {
+      model = rnnoise_get_model(argv[4]);
       if (!model) {
           fprintf(stderr, "Model not found!\n");
           return 1;
@@ -72,6 +75,7 @@ int main(int argc, char **argv) {
   for (i = 0; i < channels; i++) {
     sts[i] = rnnoise_create(model);
     rnnoise_set_param(sts[i], RNNOISE_PARAM_MAX_ATTENUATION, max_attenuation);
+    rnnoise_set_param(sts[i], RNNOISE_PARAM_SAMPLE_RATE, sample_rate);
   }
 
   while (1) {

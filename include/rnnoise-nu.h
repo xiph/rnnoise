@@ -67,7 +67,16 @@ RNNOISE_EXPORT const char **rnnoise_models(void);
 RNNOISE_EXPORT RNNModel *rnnoise_get_model(const char *name);
 
 /* Parameters to a denoise state */
+
+/* RNNOISE_PARAM_MAX_ATTENUATION: The maximum attenuation to perform. Note that
+ * this is described in terms of *minimum* gain, so for a 20dB maximum
+ * attenuation, the correct value is 0.01. */
 #define RNNOISE_PARAM_MAX_ATTENUATION           1
+
+/* RNNOISE_PARAM_SAMPLE_RATE: Sets the sample rate. This is just used to decide
+ * how to bin the audio so that it matches the bins in the neural network. This
+ * does not affect the frame size, which is always 480 samples. */
+#define RNNOISE_PARAM_SAMPLE_RATE               2
 
 RNNOISE_EXPORT void rnnoise_set_param(DenoiseState *st, int param, float value);
 

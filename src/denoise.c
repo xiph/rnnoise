@@ -41,6 +41,8 @@
 #include "rnn.h"
 #include "rnn_data.h"
 
+#define DEFAULT_SAMPLE_RATE 48000
+
 #define FRAME_SIZE_SHIFT 2
 #define FRAME_SIZE (120<<FRAME_SIZE_SHIFT)
 #define WINDOW_SIZE (2*FRAME_SIZE)
@@ -84,20 +86,24 @@ static const opus_int16 eband5ms[] = {
 };
 
 
-typedef struct {
+struct DenoiseState {
   int init;
   kiss_fft_state *kfft;
   float half_window[FRAME_SIZE];
   float dct_table[NB_BANDS*NB_BANDS];
-} CommonState;
 
-struct DenoiseState {
+  int sample_rate;
+
   float analysis_mem[FRAME_SIZE];
   float cepstral_mem[CEPS_MEM][NB_BANDS];
   int memid;
   float synthesis_mem[FRAME_SIZE];
   float pitch_buf[PITCH_BUF_SIZE];
   float pitch_enh_buf[PITCH_BUF_SIZE];
+
+  /* Bands adjusted for the sample rate */
+  opus_int16 band_bins[NB_BANDS];
+
   float last_gain;
   int last_period;
   float mem_hp_x[2];
@@ -108,19 +114,19 @@ struct DenoiseState {
 };
 
 #if SMOOTH_BANDS
-void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
+void compute_band_energy(DenoiseState *st, float *bandE, const kiss_fft_cpx *X) {
   int i;
   float sum[NB_BANDS] = {0};
   for (i=0;i<NB_BANDS-1;i++)
   {
     int j;
     int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    band_size = st->band_bins[i+1] - st->band_bins[i];
     for (j=0;j<band_size;j++) {
       float tmp;
       float frac = (float)j/band_size;
-      tmp = SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r);
-      tmp += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i);
+      tmp = SQUARE(X[st->band_bins[i] + j].r);
+      tmp += SQUARE(X[st->band_bins[i] + j].i);
       sum[i] += (1-frac)*tmp;
       sum[i+1] += frac*tmp;
     }
@@ -133,19 +139,19 @@ void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   }
 }
 
-void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *P) {
+void compute_band_corr(DenoiseState *st, float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *P) {
   int i;
   float sum[NB_BANDS] = {0};
   for (i=0;i<NB_BANDS-1;i++)
   {
     int j;
     int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    band_size = st->band_bins[i+1] - st->band_bins[i];
     for (j=0;j<band_size;j++) {
       float tmp;
       float frac = (float)j/band_size;
-      tmp = X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r * P[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r;
-      tmp += X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i * P[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i;
+      tmp = X[st->band_bins[i] + j].r * P[st->band_bins[i] + j].r;
+      tmp += X[st->band_bins[i] + j].i * P[st->band_bins[i] + j].i;
       sum[i] += (1-frac)*tmp;
       sum[i+1] += frac*tmp;
     }
@@ -158,114 +164,125 @@ void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *
   }
 }
 
-void interp_band_gain(float *g, const float *bandE) {
+void interp_band_gain(DenoiseState *st, float *g, const float *bandE) {
   int i;
   memset(g, 0, FREQ_SIZE);
   for (i=0;i<NB_BANDS-1;i++)
   {
     int j;
     int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    band_size = st->band_bins[i+1] - st->band_bins[i];
     for (j=0;j<band_size;j++) {
       float frac = (float)j/band_size;
-      g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = (1-frac)*bandE[i] + frac*bandE[i+1];
+      g[st->band_bins[i] + j] = (1-frac)*bandE[i] + frac*bandE[i+1];
     }
   }
 }
 #else
-void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
+void compute_band_energy(DenoiseState *st, float *bandE, const kiss_fft_cpx *X) {
   int i;
   for (i=0;i<NB_BANDS;i++)
   {
     int j;
     opus_val32 sum = 0;
-    for (j=0;j<(eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;j++) {
-      sum += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r);
-      sum += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i);
+    for (j=0;j<(st->band_bins[i+1] - st->band_bins[i]);j++) {
+      sum += SQUARE(X[st->band_bins[i] + j].r);
+      sum += SQUARE(X[st->band_bins[i] + j].i);
     }
     bandE[i] = sum;
   }
 }
 
-void interp_band_gain(float *g, const float *bandE) {
+void interp_band_gain(DenoiseState *st, float *g, const float *bandE) {
   int i;
   memset(g, 0, FREQ_SIZE);
   for (i=0;i<NB_BANDS;i++)
   {
     int j;
-    for (j=0;j<(eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;j++)
-      g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = bandE[i];
+    for (j=0;j<(st->band_bins[i+1] - st->band_bins[i]);j++)
+      g[st->band_bins[i] + j] = bandE[i];
   }
 }
 #endif
 
 
-CommonState common;
-
-static void check_init() {
+static void check_init(DenoiseState *st) {
   int i;
-  if (common.init) return;
-  common.kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
+  if (st->init) return;
+  /* FIXME: Deallocate this! */
+  st->kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
+
+  /* Get the sample rate set up */
+  if (st->sample_rate <= 0) st->sample_rate = DEFAULT_SAMPLE_RATE;
+
+  /* Adjust the bins for the sample rate */
+  for (i = 0; i < NB_BANDS; i++)
+    st->band_bins[i] = (((long) eband5ms[i]) << FRAME_SIZE_SHIFT) * DEFAULT_SAMPLE_RATE / st->sample_rate;
+
+  /* Make sure nothing's above the Nyquist frequency */
+  for (i = 0; i < NB_BANDS; i++)
+    if (st->band_bins[i] >= FRAME_SIZE) st->band_bins[i] = FRAME_SIZE - 1;
+
   for (i=0;i<FRAME_SIZE;i++)
-    common.half_window[i] = sin(.5*M_PI*sin(.5*M_PI*(i+.5)/FRAME_SIZE) * sin(.5*M_PI*(i+.5)/FRAME_SIZE));
+    st->half_window[i] = sin(.5*M_PI*sin(.5*M_PI*(i+.5)/FRAME_SIZE) * sin(.5*M_PI*(i+.5)/FRAME_SIZE));
   for (i=0;i<NB_BANDS;i++) {
     int j;
     for (j=0;j<NB_BANDS;j++) {
-      common.dct_table[i*NB_BANDS + j] = cos((i+.5)*j*M_PI/NB_BANDS);
-      if (j==0) common.dct_table[i*NB_BANDS + j] *= sqrt(.5);
+      st->dct_table[i*NB_BANDS + j] = cos((i+.5)*j*M_PI/NB_BANDS);
+      if (j==0) st->dct_table[i*NB_BANDS + j] *= sqrt(.5);
     }
   }
-  common.init = 1;
+  st->init = 1;
 }
 
-static void dct(float *out, const float *in) {
+static void dct(DenoiseState *st, float *out, const float *in) {
   int i;
-  check_init();
+  check_init(st);
   for (i=0;i<NB_BANDS;i++) {
     int j;
     float sum = 0;
     for (j=0;j<NB_BANDS;j++) {
-      sum += in[j] * common.dct_table[j*NB_BANDS + i];
+      sum += in[j] * st->dct_table[j*NB_BANDS + i];
     }
     out[i] = sum*sqrt(2./22);
   }
 }
 
 #if 0
-static void idct(float *out, const float *in) {
+static void idct(DenoiseState *st, float *out, const float *in) {
   int i;
-  check_init();
+  check_init(st);
   for (i=0;i<NB_BANDS;i++) {
     int j;
     float sum = 0;
     for (j=0;j<NB_BANDS;j++) {
-      sum += in[j] * common.dct_table[i*NB_BANDS + j];
+      sum += in[j] * st->dct_table[i*NB_BANDS + j];
     }
     out[i] = sum*sqrt(2./22);
   }
 }
 #endif
 
-static void forward_transform(kiss_fft_cpx *out, const float *in) {
+static void forward_transform(DenoiseState *st, kiss_fft_cpx *out, const float *in) {
   int i;
   kiss_fft_cpx x[WINDOW_SIZE];
   kiss_fft_cpx y[WINDOW_SIZE];
-  check_init();
+  check_init(st);
   for (i=0;i<WINDOW_SIZE;i++) {
     x[i].r = in[i];
     x[i].i = 0;
   }
-  opus_fft(common.kfft, x, y, 0);
+  opus_fft(st->kfft, x, y, 0);
   for (i=0;i<FREQ_SIZE;i++) {
     out[i] = y[i];
   }
 }
 
-static void inverse_transform(float *out, const kiss_fft_cpx *in) {
+static void inverse_transform(DenoiseState *st, float *out, const kiss_fft_cpx *in) {
   int i;
   kiss_fft_cpx x[WINDOW_SIZE];
   kiss_fft_cpx y[WINDOW_SIZE];
-  check_init();
+  check_init(st);
   for (i=0;i<FREQ_SIZE;i++) {
     x[i] = in[i];
   }
@@ -273,7 +290,7 @@ static void inverse_transform(float *out, const kiss_fft_cpx *in) {
     x[i].r = x[WINDOW_SIZE - i].r;
     x[i].i = -x[WINDOW_SIZE - i].i;
   }
-  opus_fft(common.kfft, x, y, 0);
+  opus_fft(st->kfft, x, y, 0);
   /* output in reverse order for IFFT. */
   out[0] = WINDOW_SIZE*y[0].r;
   for (i=1;i<WINDOW_SIZE;i++) {
@@ -281,12 +298,12 @@ static void inverse_transform(float *out, const kiss_fft_cpx *in) {
   }
 }
 
-static void apply_window(float *x) {
+static void apply_window(DenoiseState *st, float *x) {
   int i;
-  check_init();
+  check_init(st);
   for (i=0;i<FRAME_SIZE;i++) {
-    x[i] *= common.half_window[i];
-    x[WINDOW_SIZE - 1 - i] *= common.half_window[i];
+    x[i] *= st->half_window[i];
+    x[WINDOW_SIZE - 1 - i] *= st->half_window[i];
   }
 }
 
@@ -314,6 +331,8 @@ DenoiseState *rnnoise_create(RNNModel *model) {
 }
 
 void rnnoise_destroy(DenoiseState *st) {
+  if (st->init)
+    free(st->kfft);
   free(st->rnn.vad_gru_state);
   free(st->rnn.noise_gru_state);
   free(st->rnn.denoise_gru_state);
@@ -331,13 +350,13 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
   RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
   for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
   RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
-  apply_window(x);
-  forward_transform(X, x);
+  apply_window(st, x);
+  forward_transform(st, X, x);
 #if TRAINING
   for (i=lowpass;i<FREQ_SIZE;i++)
     X[i].r = X[i].i = 0;
 #endif
-  compute_band_energy(Ex, X);
+  compute_band_energy(st, Ex, X);
 }
 
 static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
@@ -369,12 +388,12 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   st->last_gain = gain;
   for (i=0;i<WINDOW_SIZE;i++)
     p[i] = st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE-pitch_index+i];
-  apply_window(p);
-  forward_transform(P, p);
-  compute_band_energy(Ep, P);
-  compute_band_corr(Exp, X, P);
+  apply_window(st, p);
+  forward_transform(st, P, p);
+  compute_band_energy(st, Ep, P);
+  compute_band_corr(st, Exp, X, P);
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
-  dct(tmp, Exp);
+  dct(st, tmp, Exp);
   for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
   features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
   features[NB_BANDS+2*NB_DELTA_CEPS+1] -= 0.9;
@@ -393,7 +412,7 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
     RNN_CLEAR(features, NB_FEATURES);
     return 1;
   }
-  dct(features, Ly);
+  dct(st, features, Ly);
   features[0] -= 12;
   features[1] -= 4;
   ceps_0 = st->cepstral_mem[st->memid];
@@ -434,8 +453,8 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
 static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
   float x[WINDOW_SIZE];
   int i;
-  inverse_transform(x, y);
-  apply_window(x);
+  inverse_transform(st, x, y);
+  apply_window(st, x);
   for (i=0;i<FRAME_SIZE;i++) out[i] = x[i] + st->synthesis_mem[i];
   RNN_COPY(st->synthesis_mem, &x[FRAME_SIZE], FRAME_SIZE);
 }
@@ -452,7 +471,7 @@ static void biquad(float *y, float mem[2], const float *x, const float *b, const
   }
 }
 
-void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
+void pitch_filter(DenoiseState *st, kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
                   const float *Exp, const float *g) {
   int i;
   float r[NB_BANDS];
@@ -469,19 +488,19 @@ void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const
 #endif
     r[i] *= sqrt(Ex[i]/(1e-8+Ep[i]));
   }
-  interp_band_gain(rf, r);
+  interp_band_gain(st, rf, r);
   for (i=0;i<FREQ_SIZE;i++) {
     X[i].r += rf[i]*P[i].r;
     X[i].i += rf[i]*P[i].i;
   }
   float newE[NB_BANDS];
-  compute_band_energy(newE, X);
+  compute_band_energy(st, newE, X);
   float norm[NB_BANDS];
   float normf[FREQ_SIZE]={0};
   for (i=0;i<NB_BANDS;i++) {
     norm[i] = sqrt(Ex[i]/(1e-8+newE[i]));
   }
-  interp_band_gain(normf, norm);
+  interp_band_gain(st, normf, norm);
   for (i=0;i<FREQ_SIZE;i++) {
     X[i].r *= normf[i];
     X[i].i *= normf[i];
@@ -507,7 +526,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
-    pitch_filter(X, P, Ex, Ep, Exp, g);
+    pitch_filter(st, X, P, Ex, Ep, Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
       g[i] = MAX16(g[i], alpha*st->lastg[i]);
@@ -533,7 +552,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
       }
     }
 
-    interp_band_gain(gf, g);
+    interp_band_gain(st, gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
       X[i].r *= gf[i];
@@ -554,6 +573,13 @@ void rnnoise_set_param(DenoiseState *st, int param, float value)
         st->max_attenuation = value;
       else
         st->max_attenuation = MIN_MAX_ATTENUATION;
+      break;
+
+    case RNNOISE_PARAM_SAMPLE_RATE:
+      if (value <= 0)
+        st->sample_rate = 0;
+      else
+        st->sample_rate = value;
       break;
   }
 }
@@ -685,7 +711,7 @@ int main(int argc, char **argv) {
     frame_analysis(noise_state, N, En, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-2+En[i]);
     int silence = compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, xn);
-    pitch_filter(X, P, Ex, Ep, Exp, g);
+    pitch_filter(st, X, P, Ex, Ep, Exp, g);
     //printf("%f %d\n", noisy->last_gain, noisy->last_period);
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ey[i]+1e-3)/(Ex[i]+1e-3));
