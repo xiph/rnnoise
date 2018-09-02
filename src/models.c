@@ -41,6 +41,7 @@ static const char *model_names[] = {
     "mp",
     "bd",
     "lq",
+    "sh",
     NULL
 };
 
@@ -49,14 +50,16 @@ extern const struct RNNModel
     model_cb,
     model_mp,
     model_bd,
-    model_lq;
+    model_lq,
+    model_sh;
 
 static const struct RNNModel *models[] = {
     &model_orig,
     &model_cb,
     &model_mp,
     &model_bd,
-    &model_lq
+    &model_lq,
+    &model_sh
 };
 
 const char **rnnoise_models()
