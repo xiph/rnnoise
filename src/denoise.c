@@ -546,11 +546,10 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
       if (min < st->max_attenuation) {
         if (min < MIN_MAX_ATTENUATION)
           min = MIN_MAX_ATTENUATION;
-        mult = st->max_attenuation / min;
+        mult = (1.0f-st->max_attenuation) / (1.0f-min);
         for (i=0;i<NB_BANDS;i++) {
           if (g[i] < MIN_MAX_ATTENUATION) g[i] = MIN_MAX_ATTENUATION;
-          g[i] *= mult;
-          if (g[i] > 1) g[i] = 1;
+          g[i] = 1.0f-((1.0f-g[i]) * mult);
           st->lastg[i] = g[i];
         }
       }
