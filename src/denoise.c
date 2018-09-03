@@ -57,6 +57,8 @@
 
 #define SMOOTH_BANDS 1
 
+#define NB_BAND_BOUNDARIES 22
+
 #if SMOOTH_BANDS
 #define NB_BANDS 22
 #else
@@ -102,7 +104,7 @@ struct DenoiseState {
   float pitch_enh_buf[PITCH_BUF_SIZE];
 
   /* Bands adjusted for the sample rate */
-  opus_int16 band_bins[NB_BANDS];
+  opus_int16 band_bins[NB_BAND_BOUNDARIES];
 
   float last_gain;
   int last_period;
@@ -216,7 +218,7 @@ static void check_init(DenoiseState *st) {
   if (st->sample_rate <= 0) st->sample_rate = DEFAULT_SAMPLE_RATE;
 
   /* Adjust the bins for the sample rate */
-  for (i = 0; i < NB_BANDS; i++)
+  for (i = 0; i < NB_BAND_BOUNDARIES; i++)
     st->band_bins[i] = (((long) eband5ms[i]) << FRAME_SIZE_SHIFT) * DEFAULT_SAMPLE_RATE / st->sample_rate;
 
   /* Make sure nothing's above the Nyquist frequency */
@@ -391,7 +393,9 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   apply_window(st, p);
   forward_transform(st, P, p);
   compute_band_energy(st, Ep, P);
+#if SMOOTH_BANDS
   compute_band_corr(st, Exp, X, P);
+#endif
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
   dct(st, tmp, Exp);
   for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
