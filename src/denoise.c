@@ -168,15 +168,23 @@ void compute_band_corr(DenoiseState *st, float *bandE, const kiss_fft_cpx *X, co
 
 void interp_band_gain(DenoiseState *st, float *g, const float *bandE) {
   int i;
+  float prev, cur, next;
   memset(g, 0, FREQ_SIZE);
+  prev = cur = next = bandE[0]/2;
   for (i=0;i<NB_BANDS-1;i++)
   {
     int j;
     int band_size;
+
+    /* Adjust our inputs to the surrounding bands */
+    prev = cur;
+    cur = next;
+    next = bandE[i+1]/2;
+
     band_size = st->band_bins[i+1] - st->band_bins[i];
     for (j=0;j<band_size;j++) {
       float frac = (float)j/band_size;
-      g[st->band_bins[i] + j] = (1-frac)*bandE[i] + frac*bandE[i+1];
+      g[st->band_bins[i] + j] = (1-frac)*prev + frac*next + cur;
     }
   }
 }
