@@ -79,7 +79,8 @@
 #endif
 
 
-extern const struct RNNModel model_orig;
+/* cb is the default model */
+extern const struct RNNModel model_cb;
 
 
 static const opus_int16 eband5ms[] = {
@@ -326,7 +327,7 @@ int rnnoise_init(DenoiseState *st, RNNModel *model) {
   if (model)
     st->rnn.model = model;
   else
-    st->rnn.model = &model_orig;
+    st->rnn.model = &model_cb;
   st->rnn.vad_gru_state = calloc(sizeof(float), st->rnn.model->vad_gru_size);
   st->rnn.noise_gru_state = calloc(sizeof(float), st->rnn.model->noise_gru_size);
   st->rnn.denoise_gru_state = calloc(sizeof(float), st->rnn.model->denoise_gru_size);
