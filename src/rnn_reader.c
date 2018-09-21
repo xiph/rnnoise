@@ -36,6 +36,12 @@
 #include "rnn_data.h"
 #include "rnnoise.h"
 
+/* Although these values are the same as in rnn.h, we make them separate to
+ * avoid accidentally burning internal values into a file format */
+#define F_ACTIVATION_TANH       0
+#define F_ACTIVATION_SIGMOID    1
+#define F_ACTIVATION_RELU       2
+
 RNNModel *rnnoise_model_from_file(FILE *f)
 {
     int i, in;
@@ -71,6 +77,21 @@ RNNModel *rnnoise_model_from_file(FILE *f)
     name = in; \
     } while (0)
 
+#define INPUT_ACTIVATION(name) do { \
+    int activation; \
+    INPUT_VAL(activation); \
+    switch (activation) { \
+        case F_ACTIVATION_SIGMOID: \
+            name = ACTIVATION_SIGMOID; \
+            break; \
+        case F_ACTIVATION_RELU: \
+            name = ACTIVATION_RELU; \
+            break; \
+        default: \
+            name = ACTIVATION_TANH; \
+    } \
+    } while (0)
+
 #define INPUT_ARRAY(name, len) do { \
     rnn_weight *values = malloc((len) * sizeof(rnn_weight)); \
     if (!values) { \
@@ -90,6 +111,7 @@ RNNModel *rnnoise_model_from_file(FILE *f)
 #define INPUT_DENSE(name) do { \
     INPUT_VAL(name->nb_inputs); \
     INPUT_VAL(name->nb_neurons); \
+    INPUT_ACTIVATION(name->activation); \
     INPUT_ARRAY(name->input_weights, name->nb_inputs * name->nb_neurons); \
     INPUT_ARRAY(name->bias, name->nb_neurons); \
     } while (0)
@@ -97,6 +119,7 @@ RNNModel *rnnoise_model_from_file(FILE *f)
 #define INPUT_GRU(name) do { \
     INPUT_VAL(name->nb_inputs); \
     INPUT_VAL(name->nb_neurons); \
+    INPUT_ACTIVATION(name->activation); \
     INPUT_ARRAY(name->input_weights, name->nb_inputs * name->nb_neurons * 3); \
     INPUT_ARRAY(name->recurrent_weights, name->nb_neurons * name->nb_neurons * 3); \
     INPUT_ARRAY(name->bias, name->nb_neurons * 3); \
