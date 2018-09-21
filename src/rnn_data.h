@@ -5,22 +5,22 @@
 
 struct RNNModel {
   int input_dense_size;
-  DenseLayer *input_dense;
+  const DenseLayer *input_dense;
 
   int vad_gru_size;
-  GRULayer *vad_gru;
+  const GRULayer *vad_gru;
 
   int noise_gru_size;
-  GRULayer *noise_gru;
+  const GRULayer *noise_gru;
 
   int denoise_gru_size;
-  GRULayer *denoise_gru;
+  const GRULayer *denoise_gru;
 
   int denoise_output_size;
-  DenseLayer *denoise_output;
+  const DenseLayer *denoise_output;
 
   int vad_output_size;
-  DenseLayer *vad_output;
+  const DenseLayer *vad_output;
 };
 
 struct RNNState {
