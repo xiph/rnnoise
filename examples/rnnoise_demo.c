@@ -1,4 +1,5 @@
-/* Copyright (c) 2017 Mozilla */
+/* Copyright (c) 2018 Gregor Richards
+ * Copyright (c) 2017 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -35,7 +36,7 @@ int main(int argc, char **argv) {
   float x[FRAME_SIZE];
   FILE *f1, *fout;
   DenoiseState *st;
-  st = rnnoise_create();
+  st = rnnoise_create(NULL);
   if (argc!=3) {
     fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
     return 1;

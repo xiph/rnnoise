@@ -1,4 +1,5 @@
-/* Copyright (c) 2017 Mozilla */
+/* Copyright (c) 2018 Gregor Richards
+ * Copyright (c) 2017 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -40,12 +41,13 @@
 
 
 typedef struct DenoiseState DenoiseState;
+typedef struct RNNModel RNNModel;
 
 RNNOISE_EXPORT int rnnoise_get_size();
 
-RNNOISE_EXPORT int rnnoise_init(DenoiseState *st);
+RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
 
-RNNOISE_EXPORT DenoiseState *rnnoise_create();
+RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);
 
 RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 

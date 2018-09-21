@@ -1,4 +1,5 @@
-/* Copyright (c) 2017 Mozilla */
+/* Copyright (c) 2018 Gregor Richards
+ * Copyright (c) 2017 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -69,6 +70,11 @@
 #ifndef TRAINING
 #define TRAINING 0
 #endif
+
+
+/* The built-in model, used if no file is given as input */
+extern const struct RNNModel rnnoise_model_orig;
+
 
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -284,19 +290,29 @@ int rnnoise_get_size() {
   return sizeof(DenoiseState);
 }
 
-int rnnoise_init(DenoiseState *st) {
+int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
+  if (model)
+    st->rnn.model = model;
+  else
+    st->rnn.model = &rnnoise_model_orig;
+  st->rnn.vad_gru_state = calloc(sizeof(float), st->rnn.model->vad_gru_size);
+  st->rnn.noise_gru_state = calloc(sizeof(float), st->rnn.model->noise_gru_size);
+  st->rnn.denoise_gru_state = calloc(sizeof(float), st->rnn.model->denoise_gru_size);
   return 0;
 }
 
-DenoiseState *rnnoise_create() {
+DenoiseState *rnnoise_create(RNNModel *model) {
   DenoiseState *st;
   st = malloc(rnnoise_get_size());
-  rnnoise_init(st);
+  rnnoise_init(st, model);
   return st;
 }
 
 void rnnoise_destroy(DenoiseState *st) {
+  free(st->rnn.vad_gru_state);
+  free(st->rnn.noise_gru_state);
+  free(st->rnn.denoise_gru_state);
   free(st);
 }
 
@@ -542,9 +558,9 @@ int main(int argc, char **argv) {
   DenoiseState *st;
   DenoiseState *noise_state;
   DenoiseState *noisy;
-  st = rnnoise_create();
-  noise_state = rnnoise_create();
-  noisy = rnnoise_create();
+  st = rnnoise_create(NULL);
+  noise_state = rnnoise_create(NULL);
+  noisy = rnnoise_create(NULL);
   if (argc!=4) {
     fprintf(stderr, "usage: %s <speech> <noise> <output denoised>\n", argv[0]);
     return 1;
