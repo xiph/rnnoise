@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
   float x[FRAME_SIZE];
   FILE *f1, *fout;
   DenoiseState *st;
-  st = rnnoise_create();
+  st = rnnoise_create(NULL);
   if (argc!=3) {
     fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
     return 1;

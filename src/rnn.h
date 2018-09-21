@@ -56,6 +56,7 @@ typedef struct {
   int activation;
 } GRULayer;
 
+typedef struct RNNModel RNNModel;
 typedef struct RNNState RNNState;
 
 void compute_dense(const DenseLayer *layer, float *output, const float *input);

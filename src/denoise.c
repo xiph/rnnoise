@@ -70,6 +70,10 @@
 #define TRAINING 0
 #endif
 
+
+extern const struct RNNModel model_orig;
+
+
 static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
   0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100
@@ -284,15 +288,19 @@ int rnnoise_get_size() {
   return sizeof(DenoiseState);
 }
 
-int rnnoise_init(DenoiseState *st) {
+int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
+  if (model)
+    st->rnn.model = model;
+  else
+    st->rnn.model = &model_orig;
   return 0;
 }
 
-DenoiseState *rnnoise_create() {
+DenoiseState *rnnoise_create(RNNModel *model) {
   DenoiseState *st;
   st = malloc(rnnoise_get_size());
-  rnnoise_init(st);
+  rnnoise_init(st, model);
   return st;
 }
 
@@ -542,9 +550,9 @@ int main(int argc, char **argv) {
   DenoiseState *st;
   DenoiseState *noise_state;
   DenoiseState *noisy;
-  st = rnnoise_create();
-  noise_state = rnnoise_create();
-  noisy = rnnoise_create();
+  st = rnnoise_create(NULL);
+  noise_state = rnnoise_create(NULL);
+  noisy = rnnoise_create(NULL);
   if (argc!=4) {
     fprintf(stderr, "usage: %s <speech> <noise> <output denoised>\n", argv[0]);
     return 1;

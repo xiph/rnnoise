@@ -40,12 +40,13 @@
 
 
 typedef struct DenoiseState DenoiseState;
+typedef struct RNNModel RNNModel;
 
 RNNOISE_EXPORT int rnnoise_get_size();
 
-RNNOISE_EXPORT int rnnoise_init(DenoiseState *st);
+RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
 
-RNNOISE_EXPORT DenoiseState *rnnoise_create();
+RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);
 
 RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 
