@@ -27,6 +27,9 @@
 #ifndef RNNOISE_H
 #define RNNOISE_H 1
 
+#include <stdio.h>
+
+
 #ifndef RNNOISE_EXPORT
 # if defined(WIN32)
 #  if defined(RNNOISE_BUILD) && defined(DLL_EXPORT)
@@ -41,7 +44,6 @@
 # endif
 #endif
 
-
 typedef struct DenoiseState DenoiseState;
 typedef struct RNNModel RNNModel;
 
@@ -54,5 +56,9 @@ RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);
 RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
+
+RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
+
+RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
 
 #endif
