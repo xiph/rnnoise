@@ -49,4 +49,8 @@ RNNOISE_EXPORT DenoiseState *rnnoise_create();
 
 RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 
-RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
+RNNOISE_EXPORT size_t rnnoise_need_samples(DenoiseState *st);
+
+RNNOISE_EXPORT size_t rnnoise_add_samples(DenoiseState *st, const float *in, size_t samples);
+
+RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out);
