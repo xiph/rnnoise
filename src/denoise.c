@@ -71,7 +71,8 @@
 #endif
 
 
-extern const struct RNNModel model_orig;
+/* The built-in model, used if no file is given as input */
+extern const struct RNNModel rnnoise_model_orig;
 
 
 static const opus_int16 eband5ms[] = {
@@ -293,7 +294,7 @@ int rnnoise_init(DenoiseState *st, RNNModel *model) {
   if (model)
     st->rnn.model = model;
   else
-    st->rnn.model = &model_orig;
+    st->rnn.model = &rnnoise_model_orig;
   return 0;
 }
 
