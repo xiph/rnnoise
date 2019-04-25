@@ -44,13 +44,28 @@ int main(int argc, char **argv) {
   DenoiseState **sts;
   float max_attenuation;
   if (argc < 3) {
-    fprintf(stderr, "usage: %s <channels> <max attenuation dB>\n", argv[0]);
+    fprintf(stderr, "usage: %s <channels> <max attenuation dB> [model file]\n", argv[0]);
     return 1;
   }
 
   channels = atoi(argv[1]);
   if (channels < 1) channels = 1;
   max_attenuation = pow(10, -atof(argv[2])/10);
+
+  if (argc >= 4) {
+    FILE *model_file = fopen(argv[3], "r");
+    if (!model_file) {
+      perror(argv[3]);
+      return 1;
+    }
+    model = rnnoise_model_from_file(model_file);
+    fprintf(stderr, "\n\n\n%p\n\n\n", model);
+    if (!model) {
+      perror(argv[3]);
+      return 1;
+    }
+    fclose(model_file);
+  }
 
   sts = malloc(channels * sizeof(DenoiseState *));
   if (!sts) {
@@ -85,5 +100,7 @@ int main(int argc, char **argv) {
     rnnoise_destroy(sts[i]);
   free(tmp);
   free(sts);
+  if (model)
+    rnnoise_model_free(model);
   return 0;
 }
