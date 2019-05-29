@@ -1,4 +1,5 @@
-/* Copyright (c) 2017 Mozilla */
+/* Copyright (c) 2018 Gregor Richards
+ * Copyright (c) 2017 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -24,6 +25,12 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef RNNOISE_H
+#define RNNOISE_H 1
+
+#include <stdio.h>
+
+
 #ifndef RNNOISE_EXPORT
 # if defined(WIN32)
 #  if defined(RNNOISE_BUILD) && defined(DLL_EXPORT)
@@ -38,15 +45,26 @@
 # endif
 #endif
 
-
 typedef struct DenoiseState DenoiseState;
+typedef struct RNNModel RNNModel;
 
 RNNOISE_EXPORT int rnnoise_get_size();
 
-RNNOISE_EXPORT int rnnoise_init(DenoiseState *st);
+RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
 
-RNNOISE_EXPORT DenoiseState *rnnoise_create();
+RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);
 
 RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
+
+RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
+
+RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
+
+/* Parameters to a denoise state */
+#define RNNOISE_PARAM_MAX_ATTENUATION           1
+
+RNNOISE_EXPORT void rnnoise_set_param(DenoiseState *st, int param, float value);
+
+#endif
