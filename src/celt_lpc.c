@@ -103,7 +103,7 @@ void celt_fir(
    {
       opus_val32 sum[4];
       sum[0] = SHL32(EXTEND32(x[i  ]), SIG_SHIFT);
-      sum[1] = SHL32(EXTEND32(x[i+1]), SIG_SHIFT),
+      sum[1] = SHL32(EXTEND32(x[i+1]), SIG_SHIFT);
       sum[2] = SHL32(EXTEND32(x[i+2]), SIG_SHIFT);
       sum[3] = SHL32(EXTEND32(x[i+3]), SIG_SHIFT);
       xcorr_kernel(rnum, x+i-ord, sum, ord);
