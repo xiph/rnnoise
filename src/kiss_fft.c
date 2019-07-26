@@ -515,6 +515,7 @@ void opus_fft_free(const kiss_fft_state *cfg, int arch)
 
 #endif /* CUSTOM_MODES */
 
+#ifdef COMPILE_OPUS
 void opus_fft_impl(const kiss_fft_state *st,kiss_fft_cpx *fout)
 {
     int m2, m;
@@ -599,3 +600,4 @@ void opus_ifft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *
    for (i=0;i<st->nfft;i++)
       fout[i].i = -fout[i].i;
 }
+#endif
