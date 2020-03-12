@@ -35,7 +35,7 @@
 #  endif
 #endif
 
-#include "_kiss_fft_guts.h"
+#include "rnn_kiss_fft_guts.h"
 #define CUSTOM_MODES
 
 /* The guts header contains all the multiplication and addition macros that are defined for
@@ -420,7 +420,7 @@ static void compute_twiddles(kiss_twiddle_cpx *twiddles, int nfft)
 #endif
 }
 
-int opus_fft_alloc_arch_c(kiss_fft_state *st) {
+int rnn_opus_fft_alloc_arch_c(kiss_fft_state *st) {
    (void)st;
    return 0;
 }
@@ -431,7 +431,7 @@ int opus_fft_alloc_arch_c(kiss_fft_state *st) {
  * The return value is a contiguous block of memory.  As such,
  * It can be freed with free().
  * */
-kiss_fft_state *opus_fft_alloc_twiddles(int nfft,void * mem,size_t * lenmem,
+kiss_fft_state *rnn_opus_fft_alloc_twiddles(int nfft,void * mem,size_t * lenmem,
                                         const kiss_fft_state *base, int arch)
 {
     kiss_fft_state *st=NULL;
@@ -483,25 +483,25 @@ kiss_fft_state *opus_fft_alloc_twiddles(int nfft,void * mem,size_t * lenmem,
         compute_bitrev_table(0, bitrev, 1,1, st->factors,st);
 
         /* Initialize architecture specific fft parameters */
-        if (opus_fft_alloc_arch(st, arch))
+        if (rnn_opus_fft_alloc_arch(st, arch))
             goto fail;
     }
     return st;
 fail:
-    opus_fft_free(st, arch);
+    rnn_opus_fft_free(st, arch);
     return NULL;
 }
 
-kiss_fft_state *opus_fft_alloc(int nfft,void * mem,size_t * lenmem, int arch)
+kiss_fft_state *rnn_opus_fft_alloc(int nfft,void * mem,size_t * lenmem, int arch)
 {
-   return opus_fft_alloc_twiddles(nfft, mem, lenmem, NULL, arch);
+   return rnn_opus_fft_alloc_twiddles(nfft, mem, lenmem, NULL, arch);
 }
 
-void opus_fft_free_arch_c(kiss_fft_state *st) {
+void rnn_opus_fft_free_arch_c(kiss_fft_state *st) {
    (void)st;
 }
 
-void opus_fft_free(const kiss_fft_state *cfg, int arch)
+void rnn_opus_fft_free(const kiss_fft_state *cfg, int arch)
 {
    if (cfg)
    {
@@ -515,7 +515,7 @@ void opus_fft_free(const kiss_fft_state *cfg, int arch)
 
 #endif /* CUSTOM_MODES */
 
-void opus_fft_impl(const kiss_fft_state *st,kiss_fft_cpx *fout)
+void rnn_opus_fft_impl(const kiss_fft_state *st,kiss_fft_cpx *fout)
 {
     int m2, m;
     int p;
@@ -563,7 +563,7 @@ void opus_fft_impl(const kiss_fft_state *st,kiss_fft_cpx *fout)
     }
 }
 
-void opus_fft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *fout)
+void rnn_opus_fft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *fout)
 {
    int i;
    opus_val16 scale;
@@ -582,11 +582,11 @@ void opus_fft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *f
       fout[st->bitrev[i]].r = SHR32(MULT16_32_Q16(scale, x.r), scale_shift);
       fout[st->bitrev[i]].i = SHR32(MULT16_32_Q16(scale, x.i), scale_shift);
    }
-   opus_fft_impl(st, fout);
+   rnn_opus_fft_impl(st, fout);
 }
 
 
-void opus_ifft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *fout)
+void rnn_opus_ifft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *fout)
 {
    int i;
    celt_assert2 (fin != fout, "In-place FFT not supported");
@@ -595,7 +595,7 @@ void opus_ifft_c(const kiss_fft_state *st,const kiss_fft_cpx *fin,kiss_fft_cpx *
       fout[st->bitrev[i]] = fin[i];
    for (i=0;i<st->nfft;i++)
       fout[i].i = -fout[i].i;
-   opus_fft_impl(st, fout);
+   rnn_opus_fft_impl(st, fout);
    for (i=0;i<st->nfft;i++)
       fout[i].i = -fout[i].i;
 }
