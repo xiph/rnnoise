@@ -34,8 +34,8 @@
 #ifndef ARCH_H
 #define ARCH_H
 
-#include "opus_types.h"
-#include "common.h"
+#include "rnn_opus_types.h"
+#include "rnn_common.h"
 
 # if !defined(__GNUC_PREREQ)
 #  if defined(__GNUC__)&&defined(__GNUC_MINOR__)

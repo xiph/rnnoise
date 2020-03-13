@@ -9,6 +9,12 @@
 #define RNN_INLINE inline
 #define OPUS_INLINE inline
 
+#if defined(_MSC_VER)
+#define _USE_MATH_DEFINES
+#define RNN_ALLOCA _alloca
+#else
+#define RNN_ALLOCA alloca
+#endif
 
 /** RNNoise wrapper for malloc(). To do your own dynamic allocation, all you need t
 o do is replace this function and rnnoise_free */

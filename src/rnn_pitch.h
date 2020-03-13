@@ -36,15 +36,15 @@
 
 //#include "modes.h"
 //#include "cpu_support.h"
-#include "arch.h"
+#include "rnn_arch.h"
 
-void pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
+void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
       int len, int C);
 
-void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
+void rnn_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
                   int len, int max_pitch, int *pitch);
 
-opus_val16 remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
+opus_val16 rnn_remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
       int N, int *T0, int prev_period, opus_val16 prev_gain);
 
 

@@ -30,10 +30,10 @@
 #endif
 
 #include <math.h>
-#include "opus_types.h"
-#include "common.h"
-#include "arch.h"
-#include "tansig_table.h"
+#include "rnn_opus_types.h"
+#include "rnn_common.h"
+#include "rnn_arch.h"
+#include "rnn_tansig_table.h"
 #include "rnn.h"
 #include "rnn_data.h"
 #include <stdio.h>
@@ -76,7 +76,7 @@ static OPUS_INLINE float relu(float x)
    return x < 0 ? 0 : x;
 }
 
-void compute_dense(const DenseLayer *layer, float *output, const float *input)
+void rnn_compute_dense(const DenseLayer *layer, float *output, const float *input)
 {
    int i, j;
    int N, M;
@@ -106,7 +106,7 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
    }
 }
 
-void compute_gru(const GRULayer *gru, float *state, const float *input)
+void rnn_compute_gru(const GRULayer *gru, float *state, const float *input)
 {
    int i, j;
    int N, M;
@@ -162,17 +162,17 @@ void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
   float dense_out[MAX_NEURONS];
   float noise_input[MAX_NEURONS*3];
   float denoise_input[MAX_NEURONS*3];
-  compute_dense(rnn->model->input_dense, dense_out, input);
-  compute_gru(rnn->model->vad_gru, rnn->vad_gru_state, dense_out);
-  compute_dense(rnn->model->vad_output, vad, rnn->vad_gru_state);
+  rnn_compute_dense(rnn->model->input_dense, dense_out, input);
+  rnn_compute_gru(rnn->model->vad_gru, rnn->vad_gru_state, dense_out);
+  rnn_compute_dense(rnn->model->vad_output, vad, rnn->vad_gru_state);
   for (i=0;i<rnn->model->input_dense_size;i++) noise_input[i] = dense_out[i];
   for (i=0;i<rnn->model->vad_gru_size;i++) noise_input[i+rnn->model->input_dense_size] = rnn->vad_gru_state[i];
   for (i=0;i<INPUT_SIZE;i++) noise_input[i+rnn->model->input_dense_size+rnn->model->vad_gru_size] = input[i];
-  compute_gru(rnn->model->noise_gru, rnn->noise_gru_state, noise_input);
+  rnn_compute_gru(rnn->model->noise_gru, rnn->noise_gru_state, noise_input);
 
   for (i=0;i<rnn->model->vad_gru_size;i++) denoise_input[i] = rnn->vad_gru_state[i];
   for (i=0;i<rnn->model->noise_gru_size;i++) denoise_input[i+rnn->model->vad_gru_size] = rnn->noise_gru_state[i];
   for (i=0;i<INPUT_SIZE;i++) denoise_input[i+rnn->model->vad_gru_size+rnn->model->noise_gru_size] = input[i];
-  compute_gru(rnn->model->denoise_gru, rnn->denoise_gru_state, denoise_input);
-  compute_dense(rnn->model->denoise_output, gains, rnn->denoise_gru_state);
+  rnn_compute_gru(rnn->model->denoise_gru, rnn->denoise_gru_state, denoise_input);
+  rnn_compute_dense(rnn->model->denoise_output, gains, rnn->denoise_gru_state);
 }

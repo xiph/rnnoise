@@ -13,7 +13,7 @@ m4_define([CURRENT_VERSION],
                        fi ]))
 
 AC_INIT([rnnoise],[CURRENT_VERSION],[jmvalin@jmvalin.ca])
-AC_CONFIG_SRCDIR([src/denoise.c])
+AC_CONFIG_SRCDIR([src/rnn_denoise.c])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_USE_SYSTEM_EXTENSIONS

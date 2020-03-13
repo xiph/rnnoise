@@ -7,25 +7,25 @@ dist_doc_DATA = COPYING AUTHORS README
 include_HEADERS = include/rnnoise.h
 
 lib_LTLIBRARIES = librnnoise.la
-noinst_HEADERS = src/arch.h  \
-		 src/celt_lpc.h  \
-		 src/common.h  \
-		 src/_kiss_fft_guts.h  \
-		 src/kiss_fft.h  \
-		 src/opus_types.h  \
-		 src/pitch.h  \
+noinst_HEADERS = src/rnn_arch.h  \
+		 src/rnn_celt_lpc.h  \
+		 src/rnn_common.h  \
+		 src/rnn_kiss_fft_guts.h  \
+		 src/rnn_kiss_fft.h  \
+		 src/rnn_opus_types.h  \
+		 src/rnn_pitch.h  \
 		 src/rnn_data.h  \
 		 src/rnn.h  \
-		 src/tansig_table.h
+		 src/rnn_tansig_table.h
 
 librnnoise_la_SOURCES = \
-	src/denoise.c \
+	src/rnn_denoise.c \
 	src/rnn.c \
 	src/rnn_data.c \
 	src/rnn_reader.c \
-	src/pitch.c \
-	src/kiss_fft.c \
-	src/celt_lpc.c
+	src/rnn_pitch.c \
+	src/rnn_kiss_fft.c \
+	src/rnn_celt_lpc.c
 
 librnnoise_la_LIBADD = $(DEPS_LIBS) $(lrintf_lib) $(LIBM)
 librnnoise_la_LDFLAGS = -no-undefined \
