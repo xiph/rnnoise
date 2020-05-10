@@ -37,7 +37,7 @@ def printLayer(f, ft, layer):
     weights = layer.get_weights()
     activation = re.search('function (.*) at', str(layer.activation)).group(1).upper()
     if len(weights) > 2:
-        ft.write('{} {} '.format(weights[0].shape[0], weights[0].shape[1]/3))
+        ft.write('{} {} '.format(weights[0].shape[0], int(weights[0].shape[1]/3)))
     else:
         ft.write('{} {} '.format(weights[0].shape[0], weights[0].shape[1]))
     if activation == 'SIGMOID':
@@ -105,3 +105,4 @@ f.write('};\n')
 #hf.write('};\n')
 
 f.close()
+ft.close()

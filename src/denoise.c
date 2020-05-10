@@ -149,7 +149,7 @@ void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *
 
 void interp_band_gain(float *g, const float *bandE) {
   int i;
-  memset(g, 0, FREQ_SIZE);
+  memset(g, 0, FREQ_SIZE * sizeof(float));
   for (i=0;i<NB_BANDS-1;i++)
   {
     int j;
@@ -534,7 +534,15 @@ int main(int argc, char **argv) {
     return 1;
   }
   f1 = fopen(argv[1], "r");
+  if (!f1) {
+      fprintf(stderr, "Error opening speech samples file %s\n", argv[1]);
+      return 1;
+  }
   f2 = fopen(argv[2], "r");
+  if (!f2) {
+      fprintf(stderr, "Error opening noise samples file %s\n", argv[2]);
+      return 1;
+  }
   maxCount = atoi(argv[3]);
   for(i=0;i<150;i++) {
     short tmp[FRAME_SIZE];
