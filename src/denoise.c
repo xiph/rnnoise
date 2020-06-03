@@ -312,6 +312,7 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   float Ly[NB_BANDS];
   float p[WINDOW_SIZE];
   float pitch_buf[PITCH_BUF_SIZE>>1];
+  float pitch_buf_scratch[PITCH_BUF_SIZE>>1];
   int pitch_index;
   float gain;
   float *(pre[1]);
@@ -321,7 +322,7 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
   pre[0] = &st->pitch_buf[0];
-  pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1);
+  pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1, pitch_buf_scratch);
   pitch_search(pitch_buf+(PITCH_MAX_PERIOD>>1), pitch_buf, PITCH_FRAME_SIZE,
                PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD, &pitch_index);
   pitch_index = PITCH_MAX_PERIOD-pitch_index;

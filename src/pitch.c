@@ -145,8 +145,12 @@ static void celt_fir5(const opus_val16 *x,
 }
 
 
-void pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
-      int len, int C)
+void pitch_downsample(
+                      celt_sig *x[],
+                      opus_val16 *x_lp,
+                      int len,
+                      int C,
+                      opus_val16 *xx) /* scratch buffer of size len/2 */
 {
    int i;
    opus_val32 ac[5];
@@ -181,7 +185,7 @@ void pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
    }
 
    _celt_autocorr(x_lp, ac, NULL, 0,
-                  4, len>>1);
+                  4, len>>1, xx);
 
    /* Noise floor -40 dB */
 #ifdef FIXED_POINT
