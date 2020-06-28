@@ -41,8 +41,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
     return 1;
   }
-  f1 = fopen(argv[1], "r");
-  fout = fopen(argv[2], "w");
+  f1 = fopen(argv[1], "rb");
+  fout = fopen(argv[2], "wb");
   while (1) {
     short tmp[FRAME_SIZE];
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
