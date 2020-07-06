@@ -219,38 +219,13 @@ void pitch_downsample(
    celt_fir5(x_lp, lpc2, x_lp, len>>1, mem);
 }
 
-void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
-      opus_val32 *xcorr, int len, int max_pitch)
+extern void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
+      opus_val32 *xcorr, int len, int max_pitch);
+
+// Note that this commented-out version has a bunch of optimizations that we haven't carried through to the rust version.
+    /*
 {
-
-#if 0 /* This is a simple version of the pitch correlation that should work
-         well on DSPs like Blackfin and TI C5x/C6x */
-   int i, j;
-#ifdef FIXED_POINT
-   opus_val32 maxcorr=1;
-#endif
-   for (i=0;i<max_pitch;i++)
-   {
-      opus_val32 sum = 0;
-      for (j=0;j<len;j++)
-         sum = MAC16_16(sum, _x[j], _y[i+j]);
-      xcorr[i] = sum;
-#ifdef FIXED_POINT
-      maxcorr = MAX32(maxcorr, sum);
-#endif
-   }
-#ifdef FIXED_POINT
-   return maxcorr;
-#endif
-
-#else /* Unrolled version of the pitch correlation -- runs faster on x86 and ARM */
    int i;
-   /*The EDSP version requires that max_pitch is at least 1, and that _x is
-      32-bit aligned.
-     Since it's hard to put asserts in assembly, put them here.*/
-#ifdef FIXED_POINT
-   opus_val32 maxcorr=1;
-#endif
    celt_assert(max_pitch>0);
    celt_assert((((unsigned char *)_x-(unsigned char *)NULL)&3)==0);
    for (i=0;i<max_pitch-3;i+=4)
@@ -261,28 +236,16 @@ void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
       xcorr[i+1]=sum[1];
       xcorr[i+2]=sum[2];
       xcorr[i+3]=sum[3];
-#ifdef FIXED_POINT
-      sum[0] = MAX32(sum[0], sum[1]);
-      sum[2] = MAX32(sum[2], sum[3]);
-      sum[0] = MAX32(sum[0], sum[2]);
-      maxcorr = MAX32(maxcorr, sum[0]);
-#endif
    }
-   /* In case max_pitch isn't a multiple of 4, do non-unrolled version. */
+   * In case max_pitch isn't a multiple of 4, do non-unrolled version. *
    for (;i<max_pitch;i++)
    {
       opus_val32 sum;
       sum = celt_inner_prod(_x, _y+i, len);
       xcorr[i] = sum;
-#ifdef FIXED_POINT
-      maxcorr = MAX32(maxcorr, sum);
-#endif
    }
-#ifdef FIXED_POINT
-   return maxcorr;
-#endif
-#endif
 }
+*/
 
 void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
                   int len, int max_pitch, int *pitch)
