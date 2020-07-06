@@ -71,3 +71,63 @@ fn pitch_xcorr(x: &[f32], y: &[f32], xcorr: &mut [f32], max_pitch: usize) {
         xcorr[i] = sum;
     }
 }
+
+#[no_mangle]
+pub extern "C" fn find_best_pitch(
+    xcorr: *const f32,
+    y: *const f32,
+    len: c_int,
+    max_pitch: c_int,
+    best_pitch: *mut c_int,
+) {
+    unsafe {
+        let xcorr_slice = std::slice::from_raw_parts(xcorr, max_pitch as usize);
+        let y_slice = std::slice::from_raw_parts(y, len as usize + max_pitch as usize);
+        let pitch_slice = std::slice::from_raw_parts_mut(best_pitch, 2);
+        let (a, b) = rs_find_best_pitch(xcorr_slice, y_slice, len as usize);
+        pitch_slice[0] = a as _;
+        pitch_slice[1] = b as _;
+    }
+}
+
+/// Returns the indices with the largest and second-largest normalized auto-correlation.
+///
+/// `xcorr` is the autocorrelation of `ys`, taken with windows of length `len`.
+///
+/// To be a little more precise, the function that we're maximizing is xcorr[i] * xcorr[i],
+/// divided by the squared norm of ys[i..(i+len)] (but with a bit of fudging to avoid dividing
+/// by small things).
+fn rs_find_best_pitch(xcorr: &[f32], ys: &[f32], len: usize) -> (usize, usize) {
+    let mut best_num = -1.0;
+    let mut second_best_num = -1.0;
+    let mut best_den = 0.0;
+    let mut second_best_den = 0.0;
+    let mut best_pitch = 0;
+    let mut second_best_pitch = 1;
+    let mut y_sq_norm = 1.0;
+    for y in &ys[0..len] {
+        y_sq_norm += y * y;
+    }
+    for (i, &corr) in xcorr.iter().enumerate() {
+        if corr > 0.0 {
+            let num = corr * corr;
+            if num * second_best_den > second_best_num * y_sq_norm {
+                if num * best_den > best_num * y_sq_norm {
+                    second_best_num = best_num;
+                    second_best_den = best_den;
+                    second_best_pitch = best_pitch;
+                    best_num = num;
+                    best_den = y_sq_norm;
+                    best_pitch = i;
+                } else {
+                    second_best_num = num;
+                    second_best_den = y_sq_norm;
+                    second_best_pitch = i;
+                }
+            }
+        }
+        y_sq_norm += ys[i + len] * ys[i + len] - ys[i] * ys[i];
+        y_sq_norm = y_sq_norm.max(1.0);
+    }
+    (best_pitch, second_best_pitch)
+}
