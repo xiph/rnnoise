@@ -43,47 +43,11 @@
 #include "celt_lpc.h"
 #include "math.h"
 
-static void celt_fir5(const opus_val16 *x,
+extern void celt_fir5(const opus_val16 *x,
          const opus_val16 *num,
          opus_val16 *y,
          int N,
-         opus_val16 *mem)
-{
-   int i;
-   opus_val16 num0, num1, num2, num3, num4;
-   opus_val32 mem0, mem1, mem2, mem3, mem4;
-   num0=num[0];
-   num1=num[1];
-   num2=num[2];
-   num3=num[3];
-   num4=num[4];
-   mem0=mem[0];
-   mem1=mem[1];
-   mem2=mem[2];
-   mem3=mem[3];
-   mem4=mem[4];
-   for (i=0;i<N;i++)
-   {
-      opus_val32 sum = SHL32(EXTEND32(x[i]), SIG_SHIFT);
-      sum = MAC16_16(sum,num0,mem0);
-      sum = MAC16_16(sum,num1,mem1);
-      sum = MAC16_16(sum,num2,mem2);
-      sum = MAC16_16(sum,num3,mem3);
-      sum = MAC16_16(sum,num4,mem4);
-      mem4 = mem3;
-      mem3 = mem2;
-      mem2 = mem1;
-      mem1 = mem0;
-      mem0 = x[i];
-      y[i] = ROUND16(sum, SIG_SHIFT);
-   }
-   mem[0]=mem0;
-   mem[1]=mem1;
-   mem[2]=mem2;
-   mem[3]=mem3;
-   mem[4]=mem4;
-}
-
+         opus_val16 *mem);
 
 void pitch_downsample(
                       celt_sig *x[],

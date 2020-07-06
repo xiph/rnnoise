@@ -188,3 +188,50 @@ fn rs_pitch_search(x_lp: &[f32], y: &[f32], len: usize, max_pitch: usize) -> usi
     };
     (2 * best_pitch as isize - offset) as usize
 }
+
+#[no_mangle]
+pub extern "C" fn celt_fir5(
+    x: *const f32,
+    num: *const f32,
+    y: *mut f32,
+    len: c_int,
+    mem: *mut f32,
+) {
+    unsafe {
+        let x_slice = std::slice::from_raw_parts(x, len as usize);
+        let y_slice = std::slice::from_raw_parts_mut(y, len as usize);
+        let num_slice = std::slice::from_raw_parts(num, 5);
+        let mem_slice = std::slice::from_raw_parts_mut(mem, 5);
+        fir5(x_slice, num_slice, y_slice, mem_slice);
+    }
+}
+
+fn fir5(x: &[f32], num: &[f32], y: &mut [f32], mem: &mut [f32]) {
+    let num0 = num[0];
+    let num1 = num[1];
+    let num2 = num[2];
+    let num3 = num[3];
+    let num4 = num[4];
+
+    let mut mem0 = mem[0];
+    let mut mem1 = mem[1];
+    let mut mem2 = mem[2];
+    let mut mem3 = mem[3];
+    let mut mem4 = mem[4];
+
+    for i in 0..x.len() {
+        let sum = x[i] + num0 * mem0 + num1 * mem1 + num2 * mem2 + num3 * mem3 + num4 * mem4;
+        mem4 = mem3;
+        mem3 = mem2;
+        mem2 = mem1;
+        mem1 = mem0;
+        mem0 = x[i];
+        y[i] = sum;
+    }
+
+    mem[0] = mem0;
+    mem[1] = mem1;
+    mem[2] = mem2;
+    mem[3] = mem3;
+    mem[4] = mem4;
+}
