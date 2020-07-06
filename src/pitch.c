@@ -43,9 +43,6 @@
 #include "celt_lpc.h"
 #include "math.h"
 
-extern void find_best_pitch(opus_val32 *xcorr, opus_val16 *y, int len,
-                            int max_pitch, int *best_pitch
-                            );
 static void celt_fir5(const opus_val16 *x,
          const opus_val16 *num,
          opus_val16 *y,
@@ -166,65 +163,8 @@ extern void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
 }
 */
 
-void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
-                  int len, int max_pitch, int *pitch)
-{
-   int i, j;
-   int lag;
-   int best_pitch[2]={0,0};
-   int offset;
-
-   celt_assert(len>0);
-   celt_assert(max_pitch>0);
-   lag = len+max_pitch;
-
-   opus_val16 x_lp4[len>>2];
-   opus_val16 y_lp4[lag>>2];
-   opus_val32 xcorr[max_pitch>>1];
-
-   /* Downsample by 2 again */
-   for (j=0;j<len>>2;j++)
-      x_lp4[j] = x_lp[2*j];
-   for (j=0;j<lag>>2;j++)
-      y_lp4[j] = y[2*j];
-
-   celt_pitch_xcorr(x_lp4, y_lp4, xcorr, len>>2, max_pitch>>2);
-
-   find_best_pitch(xcorr, y_lp4, len>>2, max_pitch>>2, best_pitch
-                   );
-
-   /* Finer search with 2x decimation */
-   for (i=0;i<max_pitch>>1;i++)
-   {
-      opus_val32 sum;
-      xcorr[i] = 0;
-      if (abs(i-2*best_pitch[0])>2 && abs(i-2*best_pitch[1])>2)
-         continue;
-      sum = celt_inner_prod(x_lp, y+i, len>>1);
-      xcorr[i] = MAX32(-1, sum);
-   }
-   find_best_pitch(xcorr, y, len>>1, max_pitch>>1, best_pitch
-                   );
-
-   /* Refine by pseudo-interpolation */
-   if (best_pitch[0]>0 && best_pitch[0]<(max_pitch>>1)-1)
-   {
-      opus_val32 a, b, c;
-      a = xcorr[best_pitch[0]-1];
-      b = xcorr[best_pitch[0]];
-      c = xcorr[best_pitch[0]+1];
-      if ((c-a) > MULT16_32_Q15(QCONST16(.7f,15),b-a))
-         offset = 1;
-      else if ((a-c) > MULT16_32_Q15(QCONST16(.7f,15),b-c))
-         offset = -1;
-      else
-         offset = 0;
-   } else {
-      offset = 0;
-   }
-   *pitch = 2*best_pitch[0]-offset;
-}
-
+extern void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
+                  int len, int max_pitch, int *pitch);
 static opus_val16 compute_pitch_gain(opus_val32 xy, opus_val32 xx, opus_val32 yy)
 {
    return xy/sqrt(1+xx*yy);
