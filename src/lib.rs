@@ -235,3 +235,57 @@ fn fir5(x: &[f32], num: &[f32], y: &mut [f32], mem: &mut [f32]) {
     mem[3] = mem3;
     mem[4] = mem4;
 }
+
+#[no_mangle]
+pub extern "C" fn _celt_autocorr(
+    x: *const f32,
+    ac: *mut f32,
+    window: *const f32,
+    overlap: c_int,
+    lag: c_int,
+    n: c_int,
+    _xx: *const f32,
+) -> c_int {
+    assert_eq!(overlap, 0);
+    assert!(window.is_null());
+    unsafe {
+        let x_slice = std::slice::from_raw_parts(x, n as usize);
+        let ac_slice = std::slice::from_raw_parts_mut(ac, lag as usize + 1);
+        celt_autocorr(x_slice, ac_slice);
+        return 0;
+    }
+}
+
+/// Computes the autocorrelation of the sequence `x` (the number of terms to compute is determined
+/// by the length of `ac`).
+fn celt_autocorr(x: &[f32], ac: &mut [f32]) {
+    let n = x.len();
+    let lag = ac.len() - 1;
+    // FIXME: check if ac.len() is lag or lag - 1.
+    let fast_n = n - lag;
+    pitch_xcorr(&x[0..fast_n], x, ac);
+
+    for k in 0..ac.len() {
+        let mut d = 0.0;
+        for i in (k + fast_n)..n {
+            d += x[i] * x[i - k];
+        }
+        ac[k] += d;
+    }
+}
+
+// have to do celt_autocorr first.
+
+/*
+fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32], xx: &mut [f32]) {
+    let mut ac = [0.0; 5];
+    let mut lpc = [0.0; 4];
+    let mut mem = [0.0; 5];
+    let mut lpc2 = [0.0; 5];
+
+    for i in 1..(x.len() / 2) {
+        x_lp[i] = ((x[2 * i - 1] + x[2 * i + 1]) / 2.0 + x[2 * i]) / 2.0;
+    }
+    x_lp[0] = (x[1] / 2.0 + x[0]) / 2.0;
+}
+*/

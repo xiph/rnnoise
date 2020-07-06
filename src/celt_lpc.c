@@ -40,43 +40,11 @@ const opus_val32 *ac,  /* in:  [0...p] autocorrelation values  */
 int          p
 );
 
-int _celt_autocorr(
+extern int _celt_autocorr(
                    const opus_val16 *x,   /*  in: [0...n-1] samples x   */
                    opus_val32       *ac,  /* out: [0...lag-1] ac values */
                    const opus_val16       *window,
                    int          overlap,
                    int          lag,
                    int          n,
-                   opus_val16 *xx)  /* scratch buffer of size n */
-{
-   opus_val32 d;
-   int i, k;
-   int fastN=n-lag;
-   int shift;
-   const opus_val16 *xptr;
-   celt_assert(n>0);
-   celt_assert(overlap>=0);
-   if (overlap == 0)
-   {
-      xptr = x;
-   } else {
-      for (i=0;i<n;i++)
-         xx[i] = x[i];
-      for (i=0;i<overlap;i++)
-      {
-         xx[i] = MULT16_16_Q15(x[i],window[i]);
-         xx[n-i-1] = MULT16_16_Q15(x[n-i-1],window[i]);
-      }
-      xptr = xx;
-   }
-   shift=0;
-   celt_pitch_xcorr(xptr, xptr, ac, fastN, lag+1);
-   for (k=0;k<=lag;k++)
-   {
-      for (i = k+fastN, d = 0; i < n; i++)
-         d = MAC16_16(d, xptr[i], xptr[i-k]);
-      ac[k] += d;
-   }
-
-   return shift;
-}
+                   opus_val16 *xx);  /* scratch buffer of size n */
