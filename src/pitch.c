@@ -99,34 +99,6 @@ void pitch_downsample(
    celt_fir5(x_lp, lpc2, x_lp, len>>1, mem);
 }
 
-extern void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
-      opus_val32 *xcorr, int len, int max_pitch);
-
-// Note that this commented-out version has a bunch of optimizations that we haven't carried through to the rust version.
-    /*
-{
-   int i;
-   celt_assert(max_pitch>0);
-   celt_assert((((unsigned char *)_x-(unsigned char *)NULL)&3)==0);
-   for (i=0;i<max_pitch-3;i+=4)
-   {
-      opus_val32 sum[4]={0,0,0,0};
-      xcorr_kernel(_x, _y+i, sum, len);
-      xcorr[i]=sum[0];
-      xcorr[i+1]=sum[1];
-      xcorr[i+2]=sum[2];
-      xcorr[i+3]=sum[3];
-   }
-   * In case max_pitch isn't a multiple of 4, do non-unrolled version. *
-   for (;i<max_pitch;i++)
-   {
-      opus_val32 sum;
-      sum = celt_inner_prod(_x, _y+i, len);
-      xcorr[i] = sum;
-   }
-}
-*/
-
 extern void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
                   int len, int max_pitch, int *pitch);
 static opus_val16 compute_pitch_gain(opus_val32 xy, opus_val32 xx, opus_val32 yy)

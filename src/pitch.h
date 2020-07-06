@@ -143,7 +143,4 @@ static OPUS_INLINE opus_val32 celt_inner_prod(const opus_val16 *x,
    return xy;
 }
 
-void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
-      opus_val32 *xcorr, int len, int max_pitch);
-
 #endif
