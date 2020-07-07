@@ -453,6 +453,7 @@ fn rs_remove_doubling(
 const FRAME_SIZE_SHIFT: usize = 2;
 const FRAME_SIZE: usize = 120 << FRAME_SIZE_SHIFT;
 const WINDOW_SIZE: usize = 2 * FRAME_SIZE;
+const FREQ_SIZE: usize = FRAME_SIZE + 1;
 const NB_BANDS: usize = 22;
 const EBAND_5MS: [usize; 22] = [
     // 0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
@@ -496,6 +497,30 @@ fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     }
     out[0] *= 2.0;
     out[NB_BANDS - 1] *= 2.0;
+}
+
+#[no_mangle]
+pub extern "C" fn interp_band_gain(g: *mut f32, band_e: *const f32) {
+    unsafe {
+        let g_slice = std::slice::from_raw_parts_mut(g, FREQ_SIZE);
+        let band_e_slice = std::slice::from_raw_parts(band_e, NB_BANDS);
+        rs_interp_band_gain(g_slice, band_e_slice);
+    }
+}
+
+fn rs_interp_band_gain(out: &mut [f32], band_e: &[f32]) {
+    for y in out.iter_mut() {
+        *y = 0.0;
+    }
+
+    for i in 0..(NB_BANDS - 1) {
+        let band_size = (EBAND_5MS[i + 1] - EBAND_5MS[i]) << FRAME_SIZE_SHIFT;
+        for j in 0..band_size {
+            let frac = j as f32 / band_size as f32;
+            let idx = (EBAND_5MS[i] << FRAME_SIZE_SHIFT) + j;
+            out[idx] = (1.0 - frac) * band_e[i] + frac * band_e[i + 1];
+        }
+    }
 }
 
 //
