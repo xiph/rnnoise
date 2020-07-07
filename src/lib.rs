@@ -1,5 +1,13 @@
 use libc::c_int;
 
+fn inner_prod(xs: &[f32], ys: &[f32], n: usize) -> f32 {
+    xs[..n]
+        .iter()
+        .zip(ys[..n].iter())
+        .map(|(&x, &y)| x * y)
+        .sum()
+}
+
 #[no_mangle]
 pub extern "C" fn _celt_lpc(lpc: *mut f32, ac: *const f32, p: c_int) {
     unsafe {
@@ -175,23 +183,6 @@ fn rs_pitch_search(x_lp: &[f32], y: &[f32], len: usize, max_pitch: usize) -> usi
     (2 * best_pitch as isize - offset) as usize
 }
 
-#[no_mangle]
-pub extern "C" fn celt_fir5(
-    x: *const f32,
-    num: *const f32,
-    y: *mut f32,
-    len: c_int,
-    mem: *mut f32,
-) {
-    unsafe {
-        let x_slice = std::slice::from_raw_parts(x, len as usize);
-        let y_slice = std::slice::from_raw_parts_mut(y, len as usize);
-        let num_slice = std::slice::from_raw_parts(num, 5);
-        let mem_slice = std::slice::from_raw_parts_mut(mem, 5);
-        fir5(x_slice, num_slice, y_slice, mem_slice);
-    }
-}
-
 fn fir5(x: &[f32], num: &[f32], y: &mut [f32], mem: &mut [f32]) {
     let num0 = num[0];
     let num1 = num[1];
@@ -260,10 +251,23 @@ fn celt_autocorr(x: &[f32], ac: &mut [f32]) {
     }
 }
 
-// have to do celt_autocorr first.
+#[no_mangle]
+pub extern "C" fn pitch_downsample(
+    x: *const *const f32,
+    x_lp: *mut f32,
+    len: c_int,
+    c: c_int,
+    _xx: *const f32,
+) {
+    assert_eq!(c, 1);
+    unsafe {
+        let x_slice = std::slice::from_raw_parts(*x, len as usize);
+        let x_lp_slice = std::slice::from_raw_parts_mut(x_lp, len as usize / 2);
+        rs_pitch_downsample(x_slice, x_lp_slice);
+    }
+}
 
-/*
-fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32], xx: &mut [f32]) {
+fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32]) {
     let mut ac = [0.0; 5];
     let mut lpc = [0.0; 4];
     let mut mem = [0.0; 5];
@@ -273,5 +277,175 @@ fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32], xx: &mut [f32]) {
         x_lp[i] = ((x[2 * i - 1] + x[2 * i + 1]) / 2.0 + x[2 * i]) / 2.0;
     }
     x_lp[0] = (x[1] / 2.0 + x[0]) / 2.0;
+
+    celt_autocorr(x_lp, &mut ac);
+
+    // Noise floor -40 dB
+    ac[0] *= 1.0001;
+    // Lag windowing
+    for i in 1..5 {
+        ac[i] -= ac[i] * (0.008 * i as f32) * (0.008 * i as f32);
+    }
+
+    celt_lpc(&mut lpc, &ac);
+    let mut tmp = 1.0;
+    for i in 0..4 {
+        tmp *= 0.9;
+        lpc[i] *= tmp;
+    }
+    // Add a zero
+    lpc2[0] = lpc[0] + 0.8;
+    lpc2[1] = lpc[1] + 0.8 * lpc[0];
+    lpc2[2] = lpc[2] + 0.8 * lpc[1];
+    lpc2[3] = lpc[3] + 0.8 * lpc[2];
+    lpc2[4] = 0.8 * lpc[3];
+
+    // FIXME: allocation
+    let x_lp_copy = x_lp.to_owned();
+    fir5(&x_lp_copy, &lpc2, x_lp, &mut mem);
 }
-*/
+
+fn pitch_gain(xy: f32, xx: f32, yy: f32) -> f32 {
+    xy / (1.0 + xx * yy).sqrt()
+}
+
+const SECOND_CHECK: [usize; 16] = [0, 0, 3, 2, 3, 2, 5, 2, 3, 2, 3, 2, 5, 2, 3, 2];
+
+#[no_mangle]
+pub extern "C" fn remove_doubling(
+    x: *const f32,
+    max_period: c_int,
+    min_period: c_int,
+    n: c_int,
+    t0_: *mut c_int,
+    prev_period: c_int,
+    prev_gain: f32,
+) -> f32 {
+    unsafe {
+        let x_slice = std::slice::from_raw_parts(x, max_period as usize + n as usize);
+        let (t0, gain) = rs_remove_doubling(
+            x_slice,
+            max_period as usize,
+            min_period as usize,
+            n as usize,
+            *t0_ as usize,
+            prev_period as usize,
+            prev_gain,
+        );
+        *t0_ = t0 as c_int;
+        gain
+    }
+}
+
+// TODO: document this.
+fn rs_remove_doubling(
+    x: &[f32],
+    mut max_period: usize,
+    mut min_period: usize,
+    mut n: usize,
+    mut t0: usize,
+    mut prev_period: usize,
+    prev_gain: f32,
+) -> (usize, f32) {
+    let init_min_period = min_period;
+    min_period /= 2;
+    max_period /= 2;
+    t0 /= 2;
+    prev_period /= 2;
+    n /= 2;
+    t0 = t0.min(max_period - 1);
+
+    let mut t = t0;
+
+    // Note that because we can't index with negative numbers, the x in the C code is our
+    // x[max_period..].
+    // FIXME: allocation
+    let mut yy_lookup = vec![0.0f32; max_period + 1];
+    let xx = inner_prod(&x[max_period..], &x[max_period..], n);
+    let mut xy = inner_prod(&x[max_period..], &x[(max_period - t0)..], n);
+    yy_lookup[0] = xx;
+
+    let mut yy = xx;
+    for i in 1..=max_period {
+        yy += x[max_period - i] * x[max_period - i] - x[max_period + n - i] * x[max_period + n - i];
+        yy_lookup[i] = yy.max(0.0);
+    }
+
+    yy = yy_lookup[t0];
+    let mut best_xy = xy;
+    let mut best_yy = yy;
+
+    let g0 = pitch_gain(xy, xx, yy);
+    let mut g = g0;
+
+    // Look for any pitch at T/k */
+    for k in 2..=15 {
+        let t1 = (2 * t0 + k) / (2 * k);
+        if t1 < min_period {
+            break;
+        }
+        // Look for another strong correlation at t1b
+        let t1b = if k == 2 {
+            if t1 + t0 > max_period {
+                t0
+            } else {
+                t0 + t1
+            }
+        } else {
+            (2 * SECOND_CHECK[k] * t0 + k) / (2 * k)
+        };
+        xy = inner_prod(&x[max_period..], &x[(max_period - t1)..], n);
+        let xy2 = inner_prod(&x[max_period..], &x[(max_period - t1b)..], n);
+        xy = (xy + xy2) / 2.0;
+        yy = (yy_lookup[t1] + yy_lookup[t1b]) / 2.0;
+
+        let g1 = pitch_gain(xy, xx, yy);
+        let cont = if (t1 as isize - prev_period as isize).abs() <= 1 {
+            prev_gain
+        } else if (t1 as isize - prev_period as isize).abs() <= 2 && 5 * k * k < t0 {
+            prev_gain / 2.0
+        } else {
+            0.0
+        };
+
+        // Bias against very high pitch (very short period) to avoid false-positives due to
+        // short-term correlation.
+        let thresh = if t1 < 3 * min_period {
+            (0.85 * g0 - cont).max(0.4)
+        } else if t1 < 2 * min_period {
+            (0.9 * g0 - cont).max(0.5)
+        } else {
+            (0.7 * g0 - cont).max(0.3)
+        };
+        if g1 > thresh {
+            best_xy = xy;
+            best_yy = yy;
+            t = t1;
+            g = g1;
+        }
+    }
+
+    let best_xy = best_xy.max(0.0);
+    let pg = if best_yy <= best_xy {
+        1.0
+    } else {
+        best_xy / (best_yy + 1.0)
+    };
+
+    let mut xcorr = [0.0; 3];
+    for k in 0..3 {
+        xcorr[k] = inner_prod(&x[max_period..], &x[(max_period - (t + k - 1))..], n);
+    }
+    let offset: isize = if xcorr[2] - xcorr[0] > 0.7 * (xcorr[1] - xcorr[0]) {
+        1
+    } else if xcorr[0] - xcorr[2] > 0.7 * (xcorr[1] - xcorr[2]) {
+        -1
+    } else {
+        0
+    };
+
+    let pg = pg.min(g);
+    let t0 = (2 * t).wrapping_add(offset as usize).max(init_min_period);
+
+    (t0, pg)
+}
