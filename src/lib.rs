@@ -465,11 +465,21 @@ pub extern "C" fn compute_band_energy(band_e: *mut f32, x: *const Complex) {
     unsafe {
         let band_e_slice = std::slice::from_raw_parts_mut(band_e, NB_BANDS);
         let x_slice = std::slice::from_raw_parts(x, WINDOW_SIZE);
-        rs_compute_band_energy(band_e_slice, x_slice);
+        rs_compute_band_corr(band_e_slice, x_slice, x_slice);
     }
 }
 
-fn rs_compute_band_energy(out: &mut [f32], x: &[Complex]) {
+#[no_mangle]
+pub extern "C" fn compute_band_corr(band_e: *mut f32, x: *const Complex, p: *const Complex) {
+    unsafe {
+        let band_e_slice = std::slice::from_raw_parts_mut(band_e, NB_BANDS);
+        let x_slice = std::slice::from_raw_parts(x, WINDOW_SIZE);
+        let p_slice = std::slice::from_raw_parts(p, WINDOW_SIZE);
+        rs_compute_band_corr(band_e_slice, x_slice, p_slice);
+    }
+}
+
+fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     for y in out.iter_mut() {
         *y = 0.0;
     }
@@ -479,12 +489,13 @@ fn rs_compute_band_energy(out: &mut [f32], x: &[Complex]) {
         for j in 0..band_size {
             let frac = j as f32 / band_size as f32;
             let idx = (EBAND_5MS[i] << FRAME_SIZE_SHIFT) + j;
-            let norm = x[idx].re * x[idx].re + x[idx].im * x[idx].im;
-            out[i] += (1.0 - frac) * norm;
-            out[i + 1] += frac * norm;
+            let corr = x[idx].re * p[idx].re + x[idx].im * p[idx].im;
+            out[i] += (1.0 - frac) * corr;
+            out[i + 1] += frac * corr;
         }
     }
     out[0] *= 2.0;
     out[NB_BANDS - 1] *= 2.0;
 }
+
 //
