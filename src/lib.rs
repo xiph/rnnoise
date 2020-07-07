@@ -449,3 +449,42 @@ fn rs_remove_doubling(
 
     (t0, pg)
 }
+
+const FRAME_SIZE_SHIFT: usize = 2;
+const FRAME_SIZE: usize = 120 << FRAME_SIZE_SHIFT;
+const WINDOW_SIZE: usize = 2 * FRAME_SIZE;
+const NB_BANDS: usize = 22;
+const EBAND_5MS: [usize; 22] = [
+    // 0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100,
+];
+type Complex = num_complex::Complex<f32>;
+
+#[no_mangle]
+pub extern "C" fn compute_band_energy(band_e: *mut f32, x: *const Complex) {
+    unsafe {
+        let band_e_slice = std::slice::from_raw_parts_mut(band_e, NB_BANDS);
+        let x_slice = std::slice::from_raw_parts(x, WINDOW_SIZE);
+        rs_compute_band_energy(band_e_slice, x_slice);
+    }
+}
+
+fn rs_compute_band_energy(out: &mut [f32], x: &[Complex]) {
+    for y in out.iter_mut() {
+        *y = 0.0;
+    }
+
+    for i in 0..(NB_BANDS - 1) {
+        let band_size = (EBAND_5MS[i + 1] - EBAND_5MS[i]) << FRAME_SIZE_SHIFT;
+        for j in 0..band_size {
+            let frac = j as f32 / band_size as f32;
+            let idx = (EBAND_5MS[i] << FRAME_SIZE_SHIFT) + j;
+            let norm = x[idx].re * x[idx].re + x[idx].im * x[idx].im;
+            out[i] += (1.0 - frac) * norm;
+            out[i + 1] += frac * norm;
+        }
+    }
+    out[0] *= 2.0;
+    out[NB_BANDS - 1] *= 2.0;
+}
+//

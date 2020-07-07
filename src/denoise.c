@@ -97,30 +97,7 @@ struct DenoiseState {
   RNNState rnn;
 };
 
-void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
-  int i;
-  float sum[NB_BANDS] = {0};
-  for (i=0;i<NB_BANDS-1;i++)
-  {
-    int j;
-    int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
-    for (j=0;j<band_size;j++) {
-      float tmp;
-      float frac = (float)j/band_size;
-      tmp = SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r);
-      tmp += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i);
-      sum[i] += (1-frac)*tmp;
-      sum[i+1] += frac*tmp;
-    }
-  }
-  sum[0] *= 2;
-  sum[NB_BANDS-1] *= 2;
-  for (i=0;i<NB_BANDS;i++)
-  {
-    bandE[i] = sum[i];
-  }
-}
+extern void compute_band_energy(float *bandE, const kiss_fft_cpx *X);
 
 void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *P) {
   int i;
