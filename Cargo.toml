@@ -7,6 +7,10 @@ edition = "2018"
 [lib]
 crate-type = ["staticlib"]
 
+[[bin]]
+name = "corr"
+path = "src/corr.rs"
+
 [dependencies]
 libc = "0.2.71"
 num-complex = "0.3.0"
