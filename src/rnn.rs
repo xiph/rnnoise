@@ -50,6 +50,10 @@ pub extern "C" fn sigmoid_approx(x: f32) -> f32 {
     0.5 + 0.5 * tansig_approx(0.5 * x)
 }
 
+fn relu(x: f32) -> f32 {
+    x.min(0.0)
+}
+
 #[repr(u8)]
 pub enum Activation {
     Tanh = 0,
@@ -60,7 +64,7 @@ pub enum Activation {
 const WEIGHTS_SCALE: f32 = 1.0 / 256.0;
 
 #[repr(C)]
-struct DenseLayer {
+pub struct DenseLayer {
     bias: *const i8,
     input_weights: *const i8,
     nb_inputs: c_int,
@@ -68,7 +72,17 @@ struct DenseLayer {
     activation: c_int,
 }
 
-fn rs_compute_dense(layer: &DenseLayer, output: &mut [f32], input: &mut [f32]) {
+#[no_mangle]
+pub extern "C" fn compute_dense(layer: *const DenseLayer, output: *mut f32, input: *const f32) {
+    unsafe {
+        let layer = &*layer;
+        let output_slice = std::slice::from_raw_parts_mut(output, layer.nb_neurons as usize);
+        let input_slice = std::slice::from_raw_parts(input, layer.nb_inputs as usize);
+        rs_compute_dense(layer, output_slice, input_slice);
+    }
+}
+
+fn rs_compute_dense(layer: &DenseLayer, output: &mut [f32], input: &[f32]) {
     let m = layer.nb_inputs as isize;
     let n = layer.nb_neurons as isize;
     let stride = n;
@@ -83,12 +97,17 @@ fn rs_compute_dense(layer: &DenseLayer, output: &mut [f32], input: &mut [f32]) {
         output[i as usize] = WEIGHTS_SCALE * sum;
     }
     if layer.activation == Activation::Sigmoid as c_int {
-        for i in 0..n {}
-        todo!();
+        for i in 0..n as usize {
+            output[i] = sigmoid_approx(output[i]);
+        }
     } else if layer.activation == Activation::Tanh as c_int {
-        todo!()
+        for i in 0..n as usize {
+            output[i] = tansig_approx(output[i]);
+        }
     } else if layer.activation == Activation::Relu as c_int {
-        todo!()
+        for i in 0..n as usize {
+            output[i] = relu(output[i]);
+        }
     } else {
         panic!("bad activation");
     }

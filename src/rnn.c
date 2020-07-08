@@ -47,35 +47,7 @@ static OPUS_INLINE float relu(float x)
    return x < 0 ? 0 : x;
 }
 
-void compute_dense(const DenseLayer *layer, float *output, const float *input)
-{
-   int i, j;
-   int N, M;
-   int stride;
-   M = layer->nb_inputs;
-   N = layer->nb_neurons;
-   stride = N;
-   for (i=0;i<N;i++)
-   {
-      /* Compute update gate. */
-      float sum = layer->bias[i];
-      for (j=0;j<M;j++)
-         sum += layer->input_weights[j*stride + i]*input[j];
-      output[i] = WEIGHTS_SCALE*sum;
-   }
-   if (layer->activation == ACTIVATION_SIGMOID) {
-      for (i=0;i<N;i++)
-         output[i] = sigmoid_approx(output[i]);
-   } else if (layer->activation == ACTIVATION_TANH) {
-      for (i=0;i<N;i++)
-         output[i] = tansig_approx(output[i]);
-   } else if (layer->activation == ACTIVATION_RELU) {
-      for (i=0;i<N;i++)
-         output[i] = relu(output[i]);
-   } else {
-     *(int*)0=0;
-   }
-}
+extern void compute_dense(const DenseLayer *layer, float *output, const float *input);
 
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
