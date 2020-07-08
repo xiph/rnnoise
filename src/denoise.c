@@ -117,33 +117,7 @@ static void check_init() {
   common.init = 1;
 }
 
-static void dct(float *out, const float *in) {
-  int i;
-  check_init();
-  for (i=0;i<NB_BANDS;i++) {
-    int j;
-    float sum = 0;
-    for (j=0;j<NB_BANDS;j++) {
-      sum += in[j] * common.dct_table[j*NB_BANDS + i];
-    }
-    out[i] = sum*sqrt(2./22);
-  }
-}
-
-#if 0
-static void idct(float *out, const float *in) {
-  int i;
-  check_init();
-  for (i=0;i<NB_BANDS;i++) {
-    int j;
-    float sum = 0;
-    for (j=0;j<NB_BANDS;j++) {
-      sum += in[j] * common.dct_table[i*NB_BANDS + j];
-    }
-    out[i] = sum*sqrt(2./22);
-  }
-}
-#endif
+extern void dct(float *out, const float *in);
 
 static void forward_transform(kiss_fft_cpx *out, const float *in) {
   int i;

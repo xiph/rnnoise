@@ -1,4 +1,5 @@
 use libc::c_int;
+use once_cell::sync::OnceCell;
 
 fn inner_prod(xs: &[f32], ys: &[f32], n: usize) -> f32 {
     xs[..n]
@@ -520,6 +521,60 @@ fn rs_interp_band_gain(out: &mut [f32], band_e: &[f32]) {
             let idx = (EBAND_5MS[i] << FRAME_SIZE_SHIFT) + j;
             out[idx] = (1.0 - frac) * band_e[i] + frac * band_e[i + 1];
         }
+    }
+}
+
+struct CommonState {
+    half_window: [f32; FRAME_SIZE],
+    dct_table: [f32; NB_BANDS * NB_BANDS],
+}
+
+static COMMON: OnceCell<CommonState> = OnceCell::new();
+
+fn common() -> &'static CommonState {
+    if COMMON.get().is_none() {
+        let pi = std::f64::consts::PI;
+        let mut half_window = [0.0; FRAME_SIZE];
+        for i in 0..FRAME_SIZE {
+            let sin = (0.5 * pi * (i as f64 + 0.5) / FRAME_SIZE as f64).sin();
+            half_window[i] = (0.5 * pi * sin * sin).sin() as f32;
+        }
+
+        let mut dct_table = [0.0; NB_BANDS * NB_BANDS];
+        for i in 0..NB_BANDS {
+            for j in 0..NB_BANDS {
+                dct_table[i * NB_BANDS + j] =
+                    ((i as f64 + 0.5) * j as f64 * pi / NB_BANDS as f64).cos() as f32;
+                if j == 0 {
+                    dct_table[i * NB_BANDS + j] *= 0.5f32.sqrt();
+                }
+            }
+        }
+        let _ = COMMON.set(CommonState {
+            half_window,
+            dct_table,
+        });
+    }
+    COMMON.get().unwrap()
+}
+
+#[no_mangle]
+pub extern "C" fn dct(out: *mut f32, input: *const f32) {
+    unsafe {
+        let out_slice = std::slice::from_raw_parts_mut(out, NB_BANDS);
+        let in_slice = std::slice::from_raw_parts(input, NB_BANDS);
+        rs_dct(out_slice, in_slice);
+    }
+}
+
+fn rs_dct(out: &mut [f32], x: &[f32]) {
+    let c = common();
+    for i in 0..NB_BANDS {
+        let mut sum = 0.0;
+        for j in 0..NB_BANDS {
+            sum += x[j] * c.dct_table[j * NB_BANDS + i];
+        }
+        out[i] = (sum as f64 * (2.0 / NB_BANDS as f64).sqrt()) as f32;
     }
 }
 
