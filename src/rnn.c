@@ -38,38 +38,9 @@
 #include "rnn_data.h"
 #include <stdio.h>
 
-static OPUS_INLINE float tansig_approx(float x)
-{
-    int i;
-    float y, dy;
-    float sign=1;
-    /* Tests are reversed to catch NaNs */
-    if (!(x<8))
-        return 1;
-    if (!(x>-8))
-        return -1;
-#ifndef FIXED_POINT
-    /* Another check in case of -ffast-math */
-    if (celt_isnan(x))
-       return 0;
-#endif
-    if (x<0)
-    {
-       x=-x;
-       sign=-1;
-    }
-    i = (int)floor(.5f+25*x);
-    x -= .04f*i;
-    y = tansig_table[i];
-    dy = 1-y*y;
-    y = y + x*dy*(1 - y*x);
-    return sign*y;
-}
+extern float tansig_approx(float x);
 
-static OPUS_INLINE float sigmoid_approx(float x)
-{
-   return .5 + .5*tansig_approx(.5*x);
-}
+extern float sigmoid_approx(float x);
 
 static OPUS_INLINE float relu(float x)
 {

@@ -1,6 +1,8 @@
 use libc::c_int;
 use once_cell::sync::OnceCell;
 
+mod rnn;
+
 fn inner_prod(xs: &[f32], ys: &[f32], n: usize) -> f32 {
     xs[..n]
         .iter()
