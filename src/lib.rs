@@ -1,5 +1,6 @@
 use libc::c_int;
 use once_cell::sync::OnceCell;
+use std::sync::Arc;
 
 mod model;
 mod rnn;
@@ -503,6 +504,8 @@ fn rs_interp_band_gain(out: &mut [f32], band_e: &[f32]) {
 struct CommonState {
     half_window: [f32; FRAME_SIZE],
     dct_table: [f32; NB_BANDS * NB_BANDS],
+    fft: Arc<dyn rustfft::FFT<f32>>,
+    inv_fft: Arc<dyn rustfft::FFT<f32>>,
 }
 
 static COMMON: OnceCell<CommonState> = OnceCell::new();
@@ -526,9 +529,14 @@ fn common() -> &'static CommonState {
                 }
             }
         }
+
+        let fft = rustfft::FFTplanner::new(false).plan_fft(WINDOW_SIZE);
+        let inv_fft = rustfft::FFTplanner::new(true).plan_fft(WINDOW_SIZE);
         let _ = COMMON.set(CommonState {
             half_window,
             dct_table,
+            fft,
+            inv_fft,
         });
     }
     COMMON.get().unwrap()
@@ -568,6 +576,60 @@ fn rs_apply_window(x: &mut [f32]) {
     for i in 0..FRAME_SIZE {
         x[i] *= c.half_window[i];
         x[WINDOW_SIZE - 1 - i] *= c.half_window[i];
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn forward_transform(output: *mut Complex, input: *const f32) {
+    unsafe {
+        let output_slice = std::slice::from_raw_parts_mut(output, FREQ_SIZE);
+        let input_slice = std::slice::from_raw_parts(input, WINDOW_SIZE);
+        rs_forward_transform(output_slice, input_slice);
+    }
+}
+
+fn rs_forward_transform(output: &mut [Complex], input: &[f32]) {
+    let mut complex_input = [Complex::from(0.0); WINDOW_SIZE];
+    let mut scratch_output = [Complex::from(0.0); WINDOW_SIZE];
+    let c = common();
+    for i in 0..WINDOW_SIZE {
+        complex_input[i].re = input[i];
+    }
+    c.fft
+        .process(&mut complex_input[..], &mut scratch_output[..]);
+
+    // The kissfft convention, as far as I can tell, is the normalize the forward transform but not
+    // the inverse transform.
+    let norm = 1.0 / WINDOW_SIZE as f32;
+    for i in 0..FREQ_SIZE {
+        output[i] = scratch_output[i] * norm;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn inverse_transform(output: *mut f32, input: *const Complex) {
+    unsafe {
+        let output_slice = std::slice::from_raw_parts_mut(output, WINDOW_SIZE);
+        let input_slice = std::slice::from_raw_parts(input, FREQ_SIZE);
+        rs_inverse_transform(output_slice, input_slice);
+    }
+}
+
+fn rs_inverse_transform(output: &mut [f32], input: &[Complex]) {
+    let mut scratch_input = [Complex::from(0.0); WINDOW_SIZE];
+    let mut complex_output = [Complex::from(0.0); WINDOW_SIZE];
+    let c = common();
+    for i in 0..FREQ_SIZE {
+        scratch_input[i] = input[i];
+    }
+    for i in FREQ_SIZE..WINDOW_SIZE {
+        scratch_input[i] = scratch_input[WINDOW_SIZE - i].conj();
+    }
+
+    c.inv_fft
+        .process(&mut scratch_input[..], &mut complex_output[..]);
+    for i in 0..WINDOW_SIZE {
+        output[i] = complex_output[i].re;
     }
 }
 

@@ -13,5 +13,6 @@ path = "src/corr.rs"
 
 [dependencies]
 libc = "0.2.71"
-num-complex = "0.3.0"
+num-complex = "0.2.4"
 once_cell = "1.4.0"
+rustfft = "3.0.1"

@@ -71,13 +71,6 @@ extern const struct RNNModel rnnoise_model_orig;
 
 
 
-typedef struct {
-  int init;
-  kiss_fft_state *kfft;
-  float half_window[FRAME_SIZE];
-  float dct_table[NB_BANDS*NB_BANDS];
-} CommonState;
-
 struct DenoiseState {
   float analysis_mem[FRAME_SIZE];
   float cepstral_mem[CEPS_MEM][NB_BANDS];
@@ -99,60 +92,11 @@ extern void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_ff
 extern void interp_band_gain(float *g, const float *bandE);
 
 
-CommonState common;
-
-static void check_init() {
-  int i;
-  if (common.init) return;
-  common.kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
-  for (i=0;i<FRAME_SIZE;i++)
-    common.half_window[i] = sin(.5*M_PI*sin(.5*M_PI*(i+.5)/FRAME_SIZE) * sin(.5*M_PI*(i+.5)/FRAME_SIZE));
-  for (i=0;i<NB_BANDS;i++) {
-    int j;
-    for (j=0;j<NB_BANDS;j++) {
-      common.dct_table[i*NB_BANDS + j] = cos((i+.5)*j*M_PI/NB_BANDS);
-      if (j==0) common.dct_table[i*NB_BANDS + j] *= sqrt(.5);
-    }
-  }
-  common.init = 1;
-}
-
 extern void dct(float *out, const float *in);
 
-static void forward_transform(kiss_fft_cpx *out, const float *in) {
-  int i;
-  kiss_fft_cpx x[WINDOW_SIZE];
-  kiss_fft_cpx y[WINDOW_SIZE];
-  check_init();
-  for (i=0;i<WINDOW_SIZE;i++) {
-    x[i].r = in[i];
-    x[i].i = 0;
-  }
-  opus_fft(common.kfft, x, y, 0);
-  for (i=0;i<FREQ_SIZE;i++) {
-    out[i] = y[i];
-  }
-}
+extern void forward_transform(kiss_fft_cpx *out, const float *in);
 
-static void inverse_transform(float *out, const kiss_fft_cpx *in) {
-  int i;
-  kiss_fft_cpx x[WINDOW_SIZE];
-  kiss_fft_cpx y[WINDOW_SIZE];
-  check_init();
-  for (i=0;i<FREQ_SIZE;i++) {
-    x[i] = in[i];
-  }
-  for (;i<WINDOW_SIZE;i++) {
-    x[i].r = x[WINDOW_SIZE - i].r;
-    x[i].i = -x[WINDOW_SIZE - i].i;
-  }
-  opus_fft(common.kfft, x, y, 0);
-  /* output in reverse order for IFFT. */
-  out[0] = WINDOW_SIZE*y[0].r;
-  for (i=1;i<WINDOW_SIZE;i++) {
-    out[i] = WINDOW_SIZE*y[WINDOW_SIZE - i].r;
-  }
-}
+extern void inverse_transform(float *out, const kiss_fft_cpx *in);
 
 extern void apply_window(float *x);
 
