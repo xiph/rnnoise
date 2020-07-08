@@ -106,17 +106,7 @@ pub struct RnnState {
     denoise_gru_state: *mut f32,
 }
 
-#[no_mangle]
-pub extern "C" fn compute_dense(layer: *const DenseLayer, output: *mut f32, input: *const f32) {
-    unsafe {
-        let layer = &*layer;
-        let output_slice = std::slice::from_raw_parts_mut(output, layer.nb_neurons as usize);
-        let input_slice = std::slice::from_raw_parts(input, layer.nb_inputs as usize);
-        rs_compute_dense(layer, output_slice, input_slice);
-    }
-}
-
-fn rs_compute_dense(layer: &DenseLayer, output: &mut [f32], input: &[f32]) {
+fn compute_dense(layer: &DenseLayer, output: &mut [f32], input: &[f32]) {
     let m = layer.nb_inputs as isize;
     let n = layer.nb_neurons as isize;
     let stride = n;
@@ -147,17 +137,7 @@ fn rs_compute_dense(layer: &DenseLayer, output: &mut [f32], input: &[f32]) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn compute_gru(gru: *const GruLayer, state: *mut f32, input: *const f32) {
-    unsafe {
-        let gru = &*gru;
-        let state_slice = std::slice::from_raw_parts_mut(state, gru.nb_neurons as usize);
-        let input_slice = std::slice::from_raw_parts(input, gru.nb_inputs as usize);
-        rs_compute_gru(gru, state_slice, input_slice);
-    }
-}
-
-fn rs_compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
+fn compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
     let mut z = [0.0; MAX_NEURONS];
     let mut r = [0.0; MAX_NEURONS];
     let mut h = [0.0; MAX_NEURONS];
@@ -249,9 +229,9 @@ fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f
             std::slice::from_raw_parts_mut(rnn.noise_gru_state, model.noise_gru_size as usize);
         let denoise_gru_state =
             std::slice::from_raw_parts_mut(rnn.denoise_gru_state, model.denoise_gru_size as usize);
-        rs_compute_dense(&*model.input_dense, &mut dense_out, input);
-        rs_compute_gru(&*model.vad_gru, vad_gru_state, &dense_out);
-        rs_compute_dense(&*model.vad_output, vad, vad_gru_state);
+        compute_dense(&*model.input_dense, &mut dense_out, input);
+        compute_gru(&*model.vad_gru, vad_gru_state, &dense_out);
+        compute_dense(&*model.vad_output, vad, vad_gru_state);
 
         for i in 0..model.input_dense_size as usize {
             noise_input[i] = dense_out[i];
@@ -263,7 +243,7 @@ fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f
             noise_input[i + model.input_dense_size as usize + model.vad_gru_size as usize] =
                 input[i];
         }
-        rs_compute_gru(&*model.noise_gru, noise_gru_state, &noise_input);
+        compute_gru(&*model.noise_gru, noise_gru_state, &noise_input);
 
         for i in 0..model.vad_gru_size as usize {
             denoise_input[i] = vad_gru_state[i];
@@ -275,7 +255,7 @@ fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f
             denoise_input[i + model.vad_gru_size as usize + model.noise_gru_size as usize] =
                 input[i];
         }
-        rs_compute_gru(&*model.denoise_gru, denoise_gru_state, &denoise_input);
-        rs_compute_dense(&*model.denoise_output, gains, denoise_gru_state);
+        compute_gru(&*model.denoise_gru, denoise_gru_state, &denoise_input);
+        compute_dense(&*model.denoise_output, gains, denoise_gru_state);
     }
 }

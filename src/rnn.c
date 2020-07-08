@@ -37,10 +37,6 @@
 #include "rnn_data.h"
 #include <stdio.h>
 
-extern void compute_dense(const DenseLayer *layer, float *output, const float *input);
-
-extern void compute_gru(const GRULayer *gru, float *state, const float *input);
-
 #define INPUT_SIZE 42
 
 extern void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input);
