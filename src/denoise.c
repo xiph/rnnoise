@@ -135,35 +135,8 @@ extern void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y)
 
 extern void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N);
 
-void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
-                  const float *Exp, const float *g) {
-  int i;
-  float r[NB_BANDS];
-  float rf[FREQ_SIZE] = {0};
-  for (i=0;i<NB_BANDS;i++) {
-    if (Exp[i]>g[i]) r[i] = 1;
-    else r[i] = SQUARE(Exp[i])*(1-SQUARE(g[i]))/(.001 + SQUARE(g[i])*(1-SQUARE(Exp[i])));
-    r[i] = sqrt(MIN16(1, MAX16(0, r[i])));
-    r[i] *= sqrt(Ex[i]/(1e-8+Ep[i]));
-  }
-  interp_band_gain(rf, r);
-  for (i=0;i<FREQ_SIZE;i++) {
-    X[i].r += rf[i]*P[i].r;
-    X[i].i += rf[i]*P[i].i;
-  }
-  float newE[NB_BANDS];
-  compute_band_energy(newE, X);
-  float norm[NB_BANDS];
-  float normf[FREQ_SIZE]={0};
-  for (i=0;i<NB_BANDS;i++) {
-    norm[i] = sqrt(Ex[i]/(1e-8+newE[i]));
-  }
-  interp_band_gain(normf, norm);
-  for (i=0;i<FREQ_SIZE;i++) {
-    X[i].r *= normf[i];
-    X[i].i *= normf[i];
-  }
-}
+extern void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
+                  const float *Exp, const float *g);
 
 float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   int i;

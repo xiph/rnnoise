@@ -257,3 +257,64 @@ pub extern "C" fn biquad(
         rs_biquad(y, mem, x, b, a);
     }
 }
+
+fn rs_pitch_filter(
+    x: &mut [Complex],
+    p: &mut [Complex],
+    ex: &[f32],
+    ep: &[f32],
+    exp: &[f32],
+    g: &[f32],
+) {
+    let mut r = [0.0; NB_BANDS];
+    let mut rf = [0.0; FREQ_SIZE];
+    for i in 0..NB_BANDS {
+        r[i] = if exp[i] > g[i] {
+            1.0
+        } else {
+            let exp_sq = exp[i] * exp[i];
+            let g_sq = g[i] * g[i];
+            exp_sq * (1.0 - g_sq) / (0.001 + g_sq * (1.0 - exp_sq))
+        };
+        println!("r[{}] = {}", i, r[i]);
+        r[i] = 1.0_f32.min(0.0_f32.max(r[i])).sqrt();
+        r[i] *= (ex[i] / (1e-8 + ep[i])).sqrt();
+        println!("r[{}] = {}", i, r[i]);
+    }
+    crate::rs_interp_band_gain(&mut rf[..], &r[..]);
+    for i in 0..FREQ_SIZE {
+        x[i] += rf[i] * p[i];
+    }
+
+    let mut new_e = [0.0; NB_BANDS];
+    crate::rs_compute_band_corr(&mut new_e[..], x, x);
+    let mut norm = [0.0; NB_BANDS];
+    let mut normf = [0.0; FREQ_SIZE];
+    for i in 0..NB_BANDS {
+        norm[i] = (ex[i] / (1e-8 + new_e[i])).sqrt();
+    }
+    crate::rs_interp_band_gain(&mut normf[..], &norm[..]);
+    for i in 0..FREQ_SIZE {
+        x[i] *= normf[i];
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pitch_filter(
+    x: *mut Complex,
+    p: *mut Complex,
+    ex: *const f32,
+    ep: *const f32,
+    exp: *const f32,
+    g: *const f32,
+) {
+    unsafe {
+        let x = std::slice::from_raw_parts_mut(x, FREQ_SIZE);
+        let p = std::slice::from_raw_parts_mut(p, FREQ_SIZE);
+        let ex = std::slice::from_raw_parts(ex, NB_BANDS);
+        let ep = std::slice::from_raw_parts(ep, NB_BANDS);
+        let exp = std::slice::from_raw_parts(exp, NB_BANDS);
+        let g = std::slice::from_raw_parts(g, NB_BANDS);
+        rs_pitch_filter(x, p, ex, ep, exp, g);
+    }
+}
