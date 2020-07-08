@@ -65,38 +65,47 @@ const WEIGHTS_SCALE: f32 = 1.0 / 256.0;
 
 #[repr(C)]
 pub struct DenseLayer {
-    bias: *const i8,
-    input_weights: *const i8,
-    nb_inputs: c_int,
-    nb_neurons: c_int,
-    activation: c_int,
+    pub bias: *const i8,
+    pub input_weights: *const i8,
+    pub nb_inputs: c_int,
+    pub nb_neurons: c_int,
+    pub activation: c_int,
 }
+
+unsafe impl Send for DenseLayer {}
+unsafe impl Sync for DenseLayer {}
 
 #[repr(C)]
 pub struct GruLayer {
-    bias: *const i8,
-    input_weights: *const i8,
-    recurrent_weights: *const i8,
-    nb_inputs: c_int,
-    nb_neurons: c_int,
-    activation: c_int,
+    pub bias: *const i8,
+    pub input_weights: *const i8,
+    pub recurrent_weights: *const i8,
+    pub nb_inputs: c_int,
+    pub nb_neurons: c_int,
+    pub activation: c_int,
 }
+
+unsafe impl Send for GruLayer {}
+unsafe impl Sync for GruLayer {}
 
 #[repr(C)]
 pub struct RnnModel {
-    input_dense_size: c_int,
-    input_dense: *const DenseLayer,
-    vad_gru_size: c_int,
-    vad_gru: *const GruLayer,
-    noise_gru_size: c_int,
-    noise_gru: *const GruLayer,
-    denoise_gru_size: c_int,
-    denoise_gru: *const GruLayer,
-    denoise_output_size: c_int,
-    denoise_output: *const DenseLayer,
-    vad_output_size: c_int,
-    vad_output: *const DenseLayer,
+    pub input_dense_size: c_int,
+    pub input_dense: *const DenseLayer,
+    pub vad_gru_size: c_int,
+    pub vad_gru: *const GruLayer,
+    pub noise_gru_size: c_int,
+    pub noise_gru: *const GruLayer,
+    pub denoise_gru_size: c_int,
+    pub denoise_gru: *const GruLayer,
+    pub denoise_output_size: c_int,
+    pub denoise_output: *const DenseLayer,
+    pub vad_output_size: c_int,
+    pub vad_output: *const DenseLayer,
 }
+
+unsafe impl Send for RnnModel {}
+unsafe impl Sync for RnnModel {}
 
 #[repr(C)]
 pub struct RnnState {

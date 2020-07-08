@@ -22,7 +22,6 @@ LIBRNNOISE_RUST_RELEASE = target/release/librnnoise.a
 librnnoise_la_SOURCES = \
 	src/denoise.c \
 	src/rnn.c \
-	src/rnn_data.c \
 	src/rnn_reader.c \
 	src/pitch.c \
 	src/kiss_fft.c \
