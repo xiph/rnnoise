@@ -133,17 +133,7 @@ extern int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
 
 extern void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y);
 
-static void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N) {
-  int i;
-  for (i=0;i<N;i++) {
-    float xi, yi;
-    xi = x[i];
-    yi = x[i] + mem[0];
-    mem[0] = mem[1] + (b[0]*(double)xi - a[0]*(double)yi);
-    mem[1] = (b[1]*(double)xi - a[1]*(double)yi);
-    y[i] = yi;
-  }
-}
+extern void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N);
 
 void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
                   const float *Exp, const float *g) {

@@ -228,3 +228,32 @@ fn rs_frame_synthesis(state: &mut DenoiseState, out: &mut [f32], y: &[Complex]) 
         state.synthesis_mem[i] = x[FRAME_SIZE + i];
     }
 }
+
+fn rs_biquad(y: &mut [f32], mem: &mut [f32], x: &[f32], b: &[f32], a: &[f32]) {
+    for i in 0..x.len() {
+        let xi = x[i] as f64;
+        let yi = (x[i] + mem[0]) as f64;
+        mem[0] = (mem[1] as f64 + (b[0] as f64 * xi - a[0] as f64 * yi)) as f32;
+        mem[1] = (b[1] as f64 * xi - a[1] as f64 * yi) as f32;
+        y[i] = yi as f32;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn biquad(
+    y: *mut f32,
+    mem: *mut f32,
+    x: *const f32,
+    b: *const f32,
+    a: *const f32,
+    n: c_int,
+) {
+    unsafe {
+        let y = std::slice::from_raw_parts_mut(y, n as usize);
+        let x = std::slice::from_raw_parts(x, n as usize);
+        let mem = std::slice::from_raw_parts_mut(mem, 2);
+        let b = std::slice::from_raw_parts(b, 2);
+        let a = std::slice::from_raw_parts(a, 2);
+        rs_biquad(y, mem, x, b, a);
+    }
+}
