@@ -1,5 +1,7 @@
 use libc::c_int;
 
+const MAX_NEURONS: usize = 128;
+
 const TANSIG_TABLE: [f32; 201] = [
     0.000000, 0.039979, 0.079830, 0.119427, 0.158649, 0.197375, 0.235496, 0.272905, 0.309507,
     0.345214, 0.379949, 0.413644, 0.446244, 0.477700, 0.507977, 0.537050, 0.564900, 0.591519,
@@ -26,8 +28,7 @@ const TANSIG_TABLE: [f32; 201] = [
     1.000000, 1.000000, 1.000000,
 ];
 
-#[no_mangle]
-pub extern "C" fn tansig_approx(x: f32) -> f32 {
+fn tansig_approx(x: f32) -> f32 {
     // Tests are reversed to catch NaNs
     if !(x < 8.0) {
         return 1.0;
@@ -45,13 +46,12 @@ pub extern "C" fn tansig_approx(x: f32) -> f32 {
     sign * y
 }
 
-#[no_mangle]
-pub extern "C" fn sigmoid_approx(x: f32) -> f32 {
+fn sigmoid_approx(x: f32) -> f32 {
     0.5 + 0.5 * tansig_approx(0.5 * x)
 }
 
 fn relu(x: f32) -> f32 {
-    x.min(0.0)
+    x.max(0.0)
 }
 
 #[repr(u8)]
@@ -67,6 +67,16 @@ const WEIGHTS_SCALE: f32 = 1.0 / 256.0;
 pub struct DenseLayer {
     bias: *const i8,
     input_weights: *const i8,
+    nb_inputs: c_int,
+    nb_neurons: c_int,
+    activation: c_int,
+}
+
+#[repr(C)]
+pub struct GruLayer {
+    bias: *const i8,
+    input_weights: *const i8,
+    recurrent_weights: *const i8,
     nb_inputs: c_int,
     nb_neurons: c_int,
     activation: c_int,
@@ -110,5 +120,77 @@ fn rs_compute_dense(layer: &DenseLayer, output: &mut [f32], input: &[f32]) {
         }
     } else {
         panic!("bad activation");
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn compute_gru(gru: *const GruLayer, state: *mut f32, input: *const f32) {
+    unsafe {
+        let gru = &*gru;
+        let state_slice = std::slice::from_raw_parts_mut(state, gru.nb_neurons as usize);
+        let input_slice = std::slice::from_raw_parts(input, gru.nb_inputs as usize);
+        rs_compute_gru(gru, state_slice, input_slice);
+    }
+}
+
+fn rs_compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
+    let mut z = [0.0; MAX_NEURONS];
+    let mut r = [0.0; MAX_NEURONS];
+    let mut h = [0.0; MAX_NEURONS];
+    let m = gru.nb_inputs as isize;
+    let n = gru.nb_neurons as isize;
+    let stride = 3 * n;
+
+    for i in 0..n {
+        // Compute update gate.
+        let mut sum = unsafe { *gru.bias.offset(i) } as f32;
+        for j in 0..m {
+            sum += unsafe { *gru.input_weights.offset(j * stride + i) } as f32 * input[j as usize];
+        }
+        for j in 0..n {
+            sum +=
+                unsafe { *gru.recurrent_weights.offset(j * stride + i) } as f32 * state[j as usize];
+        }
+        z[i as usize] = sigmoid_approx(WEIGHTS_SCALE * sum);
+    }
+    for i in 0..n {
+        // Compute reset gate.
+        let mut sum = unsafe { *gru.bias.offset(n + i) } as f32;
+        for j in 0..m {
+            sum +=
+                unsafe { *gru.input_weights.offset(n + j * stride + i) } as f32 * input[j as usize];
+        }
+        for j in 0..n {
+            sum += unsafe { *gru.recurrent_weights.offset(n + j * stride + i) } as f32
+                * state[j as usize];
+        }
+        r[i as usize] = sigmoid_approx(WEIGHTS_SCALE * sum);
+    }
+    for i in 0..n {
+        // Compute output.
+        let mut sum = unsafe { *gru.bias.offset(2 * n + i) } as f32;
+        for j in 0..m {
+            sum += unsafe { *gru.input_weights.offset(2 * n + j * stride + i) } as f32
+                * input[j as usize];
+        }
+        for j in 0..n {
+            sum += unsafe { *gru.recurrent_weights.offset(2 * n + j * stride + i) } as f32
+                * state[j as usize]
+                * r[j as usize];
+        }
+        let sum = if gru.activation == Activation::Sigmoid as c_int {
+            sigmoid_approx(WEIGHTS_SCALE * sum)
+        } else if gru.activation == Activation::Tanh as c_int {
+            tansig_approx(WEIGHTS_SCALE * sum)
+        } else if gru.activation == Activation::Relu as c_int {
+            relu(WEIGHTS_SCALE * sum)
+        } else {
+            panic!("bad activation")
+        };
+        let i = i as usize;
+        h[i] = z[i] * state[i] + (1.0 - z[i]) * sum;
+    }
+    for i in 0..n as usize {
+        state[i] = h[i];
     }
 }

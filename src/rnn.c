@@ -33,70 +33,13 @@
 #include "opus_types.h"
 #include "common.h"
 #include "arch.h"
-#include "tansig_table.h"
 #include "rnn.h"
 #include "rnn_data.h"
 #include <stdio.h>
 
-extern float tansig_approx(float x);
-
-extern float sigmoid_approx(float x);
-
-static OPUS_INLINE float relu(float x)
-{
-   return x < 0 ? 0 : x;
-}
-
 extern void compute_dense(const DenseLayer *layer, float *output, const float *input);
 
-void compute_gru(const GRULayer *gru, float *state, const float *input)
-{
-   int i, j;
-   int N, M;
-   int stride;
-   float z[MAX_NEURONS];
-   float r[MAX_NEURONS];
-   float h[MAX_NEURONS];
-   M = gru->nb_inputs;
-   N = gru->nb_neurons;
-   stride = 3*N;
-   for (i=0;i<N;i++)
-   {
-      /* Compute update gate. */
-      float sum = gru->bias[i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[j*stride + i]*state[j];
-      z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   for (i=0;i<N;i++)
-   {
-      /* Compute reset gate. */
-      float sum = gru->bias[N + i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[N + j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[N + j*stride + i]*state[j];
-      r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   for (i=0;i<N;i++)
-   {
-      /* Compute output. */
-      float sum = gru->bias[2*N + i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[2*N + j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
-      if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
-      else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
-      else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
-      else *(int*)0=0;
-      h[i] = z[i]*state[i] + (1-z[i])*sum;
-   }
-   for (i=0;i<N;i++)
-      state[i] = h[i];
-}
+extern void compute_gru(const GRULayer *gru, float *state, const float *input);
 
 #define INPUT_SIZE 42
 

@@ -15,8 +15,7 @@ noinst_HEADERS = src/arch.h  \
 		 src/opus_types.h  \
 		 src/pitch.h  \
 		 src/rnn_data.h  \
-		 src/rnn.h  \
-		 src/tansig_table.h
+		 src/rnn.h
 
 LIBRNNOISE_RUST_RELEASE = target/release/librnnoise.a
 
