@@ -567,6 +567,7 @@ pub extern "C" fn dct(out: *mut f32, input: *const f32) {
     }
 }
 
+/// A brute-force DCT (discrete cosine transform) of size NB_BANDS.
 fn rs_dct(out: &mut [f32], x: &[f32]) {
     let c = common();
     for i in 0..NB_BANDS {
@@ -575,6 +576,22 @@ fn rs_dct(out: &mut [f32], x: &[f32]) {
             sum += x[j] * c.dct_table[j * NB_BANDS + i];
         }
         out[i] = (sum as f64 * (2.0 / NB_BANDS as f64).sqrt()) as f32;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn apply_window(x: *mut f32) {
+    unsafe {
+        let x_slice = std::slice::from_raw_parts_mut(x, WINDOW_SIZE);
+        rs_apply_window(x_slice);
+    }
+}
+
+fn rs_apply_window(x: &mut [f32]) {
+    let c = common();
+    for i in 0..FRAME_SIZE {
+        x[i] *= c.half_window[i];
+        x[WINDOW_SIZE - 1 - i] *= c.half_window[i];
     }
 }
 

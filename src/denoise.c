@@ -154,14 +154,7 @@ static void inverse_transform(float *out, const kiss_fft_cpx *in) {
   }
 }
 
-static void apply_window(float *x) {
-  int i;
-  check_init();
-  for (i=0;i<FRAME_SIZE;i++) {
-    x[i] *= common.half_window[i];
-    x[WINDOW_SIZE - 1 - i] *= common.half_window[i];
-  }
-}
+extern void apply_window(float *x);
 
 int rnnoise_get_size() {
   return sizeof(DenoiseState);
