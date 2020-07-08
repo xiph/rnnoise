@@ -82,6 +82,30 @@ pub struct GruLayer {
     activation: c_int,
 }
 
+#[repr(C)]
+pub struct RnnModel {
+    input_dense_size: c_int,
+    input_dense: *const DenseLayer,
+    vad_gru_size: c_int,
+    vad_gru: *const GruLayer,
+    noise_gru_size: c_int,
+    noise_gru: *const GruLayer,
+    denoise_gru_size: c_int,
+    denoise_gru: *const GruLayer,
+    denoise_output_size: c_int,
+    denoise_output: *const DenseLayer,
+    vad_output_size: c_int,
+    vad_output: *const DenseLayer,
+}
+
+#[repr(C)]
+pub struct RnnState {
+    model: *const RnnModel,
+    vad_gru_state: *mut f32,
+    noise_gru_state: *mut f32,
+    denoise_gru_state: *mut f32,
+}
+
 #[no_mangle]
 pub extern "C" fn compute_dense(layer: *const DenseLayer, output: *mut f32, input: *const f32) {
     unsafe {
@@ -192,5 +216,66 @@ fn rs_compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
     }
     for i in 0..n as usize {
         state[i] = h[i];
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn compute_rnn(
+    rnn: *const RnnState,
+    gains: *mut f32,
+    vad: *mut f32,
+    input: *const f32,
+) {
+    unsafe {
+        let gains_slice = std::slice::from_raw_parts_mut(gains, crate::NB_BANDS);
+        let vad_slice = std::slice::from_raw_parts_mut(vad, 1);
+        let input_slice = std::slice::from_raw_parts(input, crate::NB_FEATURES);
+        rs_compute_rnn(&*rnn, gains_slice, vad_slice, input_slice);
+    }
+}
+
+const INPUT_SIZE: usize = 42;
+
+fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f32]) {
+    let mut dense_out = [0.0; MAX_NEURONS];
+    let mut noise_input = [0.0; MAX_NEURONS * 3];
+    let mut denoise_input = [0.0; MAX_NEURONS * 3];
+
+    unsafe {
+        let model = &*rnn.model;
+        let vad_gru_state =
+            std::slice::from_raw_parts_mut(rnn.vad_gru_state, model.vad_gru_size as usize);
+        let noise_gru_state =
+            std::slice::from_raw_parts_mut(rnn.noise_gru_state, model.noise_gru_size as usize);
+        let denoise_gru_state =
+            std::slice::from_raw_parts_mut(rnn.denoise_gru_state, model.denoise_gru_size as usize);
+        rs_compute_dense(&*model.input_dense, &mut dense_out, input);
+        rs_compute_gru(&*model.vad_gru, vad_gru_state, &dense_out);
+        rs_compute_dense(&*model.vad_output, vad, vad_gru_state);
+
+        for i in 0..model.input_dense_size as usize {
+            noise_input[i] = dense_out[i];
+        }
+        for i in 0..model.vad_gru_size as usize {
+            noise_input[i + model.input_dense_size as usize] = vad_gru_state[i];
+        }
+        for i in 0..INPUT_SIZE {
+            noise_input[i + model.input_dense_size as usize + model.vad_gru_size as usize] =
+                input[i];
+        }
+        rs_compute_gru(&*model.noise_gru, noise_gru_state, &noise_input);
+
+        for i in 0..model.vad_gru_size as usize {
+            denoise_input[i] = vad_gru_state[i];
+        }
+        for i in 0..model.noise_gru_size as usize {
+            denoise_input[i + model.vad_gru_size as usize] = noise_gru_state[i];
+        }
+        for i in 0..INPUT_SIZE {
+            denoise_input[i + model.vad_gru_size as usize + model.noise_gru_size as usize] =
+                input[i];
+        }
+        rs_compute_gru(&*model.denoise_gru, denoise_gru_state, &denoise_input);
+        rs_compute_dense(&*model.denoise_output, gains, denoise_gru_state);
     }
 }

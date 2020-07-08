@@ -457,7 +457,9 @@ const FRAME_SIZE_SHIFT: usize = 2;
 const FRAME_SIZE: usize = 120 << FRAME_SIZE_SHIFT;
 const WINDOW_SIZE: usize = 2 * FRAME_SIZE;
 const FREQ_SIZE: usize = FRAME_SIZE + 1;
-const NB_BANDS: usize = 22;
+pub const NB_BANDS: usize = 22;
+const NB_DELTA_CEPS: usize = 6;
+pub const NB_FEATURES: usize = NB_BANDS + 3 * NB_DELTA_CEPS + 2;
 const EBAND_5MS: [usize; 22] = [
     // 0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
     0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100,
