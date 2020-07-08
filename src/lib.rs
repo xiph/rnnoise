@@ -12,15 +12,6 @@ fn inner_prod(xs: &[f32], ys: &[f32], n: usize) -> f32 {
         .sum()
 }
 
-#[no_mangle]
-pub extern "C" fn _celt_lpc(lpc: *mut f32, ac: *const f32, p: c_int) {
-    unsafe {
-        let lpc_slice = std::slice::from_raw_parts_mut(lpc, p as usize);
-        let ac_slice = std::slice::from_raw_parts(ac, p as usize + 1);
-        celt_lpc(lpc_slice, ac_slice);
-    }
-}
-
 fn celt_lpc(lpc: &mut [f32], ac: &[f32]) {
     let p = lpc.len();
     let mut error = ac[0];
@@ -215,26 +206,6 @@ fn fir5(x: &[f32], num: &[f32], y: &mut [f32], mem: &mut [f32]) {
     mem[2] = mem2;
     mem[3] = mem3;
     mem[4] = mem4;
-}
-
-#[no_mangle]
-pub extern "C" fn _celt_autocorr(
-    x: *const f32,
-    ac: *mut f32,
-    window: *const f32,
-    overlap: c_int,
-    lag: c_int,
-    n: c_int,
-    _xx: *const f32,
-) -> c_int {
-    assert_eq!(overlap, 0);
-    assert!(window.is_null());
-    unsafe {
-        let x_slice = std::slice::from_raw_parts(x, n as usize);
-        let ac_slice = std::slice::from_raw_parts_mut(ac, lag as usize + 1);
-        celt_autocorr(x_slice, ac_slice);
-        return 0;
-    }
 }
 
 /// Computes the autocorrelation of the sequence `x` (the number of terms to compute is determined
