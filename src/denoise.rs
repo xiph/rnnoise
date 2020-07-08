@@ -209,3 +209,22 @@ fn rs_compute_frame_features(
 
     return 0;
 }
+
+#[no_mangle]
+pub extern "C" fn frame_synthesis(state: *mut DenoiseState, out: *mut f32, y: *const Complex) {
+    unsafe {
+        let out = std::slice::from_raw_parts_mut(out, WINDOW_SIZE);
+        let y = std::slice::from_raw_parts(y, FREQ_SIZE);
+        rs_frame_synthesis(&mut *state, out, y);
+    }
+}
+
+fn rs_frame_synthesis(state: &mut DenoiseState, out: &mut [f32], y: &[Complex]) {
+    let mut x = [0.0; WINDOW_SIZE];
+    crate::rs_inverse_transform(&mut x[..], y);
+    crate::rs_apply_window(&mut x[..]);
+    for i in 0..FRAME_SIZE {
+        out[i] = x[i] + state.synthesis_mem[i];
+        state.synthesis_mem[i] = x[FRAME_SIZE + i];
+    }
+}
