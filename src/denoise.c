@@ -126,18 +126,11 @@ void rnnoise_destroy(DenoiseState *st) {
   free(st);
 }
 
-static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in) {
-  int i;
-  float x[WINDOW_SIZE];
-  RNN_COPY(x, st->analysis_mem, FRAME_SIZE);
-  for (i=0;i<FRAME_SIZE;i++) x[FRAME_SIZE + i] = in[i];
-  RNN_COPY(st->analysis_mem, in, FRAME_SIZE);
-  apply_window(x);
-  forward_transform(X, x);
-  compute_band_energy(Ex, X);
-}
+extern void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in);
 
-static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
+extern int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
+                                  float *Ex, float *Ep, float *Exp, float *features, const float *in);
+static int _compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
                                   float *Ex, float *Ep, float *Exp, float *features, const float *in) {
   int i;
   float E = 0;

@@ -2,6 +2,7 @@ use libc::c_int;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
+mod denoise;
 mod model;
 mod rnn;
 
@@ -120,7 +121,7 @@ pub extern "C" fn pitch_search(
 }
 
 // TODO: document this. There are some puzzles, commented below.
-fn rs_pitch_search(x_lp: &[f32], y: &[f32], len: usize, max_pitch: usize) -> usize {
+pub fn rs_pitch_search(x_lp: &[f32], y: &[f32], len: usize, max_pitch: usize) -> usize {
     let lag = len + max_pitch;
 
     // FIXME: allocation
@@ -243,7 +244,7 @@ pub extern "C" fn pitch_downsample(
     }
 }
 
-fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32]) {
+pub fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32]) {
     let mut ac = [0.0; 5];
     let mut lpc = [0.0; 4];
     let mut mem = [0.0; 5];
@@ -426,11 +427,18 @@ fn rs_remove_doubling(
     (t0, pg)
 }
 
-const FRAME_SIZE_SHIFT: usize = 2;
-const FRAME_SIZE: usize = 120 << FRAME_SIZE_SHIFT;
-const WINDOW_SIZE: usize = 2 * FRAME_SIZE;
-const FREQ_SIZE: usize = FRAME_SIZE + 1;
+pub const FRAME_SIZE_SHIFT: usize = 2;
+pub const FRAME_SIZE: usize = 120 << FRAME_SIZE_SHIFT;
+pub const WINDOW_SIZE: usize = 2 * FRAME_SIZE;
+pub const FREQ_SIZE: usize = FRAME_SIZE + 1;
+
+pub const PITCH_MIN_PERIOD: usize = 60;
+pub const PITCH_MAX_PERIOD: usize = 768;
+pub const PITCH_FRAME_SIZE: usize = 960;
+pub const PITCH_BUF_SIZE: usize = PITCH_MAX_PERIOD + PITCH_FRAME_SIZE;
+
 pub const NB_BANDS: usize = 22;
+pub const CEPS_MEM: usize = 8;
 const NB_DELTA_CEPS: usize = 6;
 pub const NB_FEATURES: usize = NB_BANDS + 3 * NB_DELTA_CEPS + 2;
 const EBAND_5MS: [usize; 22] = [
@@ -458,7 +466,7 @@ pub extern "C" fn compute_band_corr(band_e: *mut f32, x: *const Complex, p: *con
     }
 }
 
-fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
+pub fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     for y in out.iter_mut() {
         *y = 0.0;
     }
@@ -552,7 +560,7 @@ pub extern "C" fn dct(out: *mut f32, input: *const f32) {
 }
 
 /// A brute-force DCT (discrete cosine transform) of size NB_BANDS.
-fn rs_dct(out: &mut [f32], x: &[f32]) {
+pub fn rs_dct(out: &mut [f32], x: &[f32]) {
     let c = common();
     for i in 0..NB_BANDS {
         let mut sum = 0.0;

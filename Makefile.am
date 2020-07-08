@@ -18,6 +18,7 @@ noinst_HEADERS = src/arch.h  \
 		 src/rnn.h
 
 LIBRNNOISE_RUST_RELEASE = target/release/librnnoise.a
+LIBRNNOISE_RUST_DEBUG = target/debug/librnnoise.a
 
 librnnoise_la_SOURCES = \
 	src/denoise.c \
@@ -36,7 +37,7 @@ noinst_PROGRAMS = examples/rnnoise_demo
 endif
 
 examples_rnnoise_demo_SOURCES = examples/rnnoise_demo.c
-examples_rnnoise_demo_LDADD = librnnoise.la $(LIBRNNOISE_RUST_RELEASE) -lpthread -ldl
+examples_rnnoise_demo_LDADD = librnnoise.la $(LIBRNNOISE_RUST_DEBUG) -lpthread -ldl
 #examples_rnnoise_demo_LDADD = librnnoise.la
 
 pkgconfigdir = $(libdir)/pkgconfig
@@ -128,7 +129,10 @@ dist-hook:
 	echo 'PACKAGE_VERSION="$(PACKAGE_VERSION)"' > $(top_distdir)/package_version
 
 
-.PHONY: rnnoise install-rnnoise docs install-docs target/release/librnnoise.a
+.PHONY: rnnoise install-rnnoise docs install-docs $(LIBRNNOISE_RUST_DEBUG) $(LIBRNNOISE_RUST_RELEASE)
 
-target/release/librnnoise.a:
-	cargo build --verbose --release
+$(LIBRNNOISE_RUST_DEBUG):
+	cargo build
+
+$(LIBRNNOISE_RUST_RELEASE):
+	cargo build --release
