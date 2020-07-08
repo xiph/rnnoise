@@ -24,7 +24,7 @@ struct RNNModel {
 };
 
 struct RNNState {
-  const RNNModel *model;
+  void *model;
   float *vad_gru_state;
   float *noise_gru_state;
   float *denoise_gru_state;

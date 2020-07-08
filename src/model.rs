@@ -1,8 +1,6 @@
 // This file was automatically generated from a Keras model, and then manually ported to rust.
 // TODO: support generating this file in rust directly.
 
-use libc::c_int;
-
 use crate::rnn::{Activation, DenseLayer, GruLayer, RnnModel};
 
 static INPUT_DENSE_WEIGHTS: [i8; 1008] = [
@@ -63,11 +61,11 @@ static INPUT_DENSE_BIAS: [i8; 24] = [
 ];
 
 static INPUT_DENSE: DenseLayer = DenseLayer {
-    bias: &INPUT_DENSE_BIAS as *const _,
-    input_weights: &INPUT_DENSE_WEIGHTS as *const _,
+    bias: &INPUT_DENSE_BIAS,
+    input_weights: &INPUT_DENSE_WEIGHTS,
     nb_inputs: 42,
     nb_neurons: 24,
-    activation: Activation::Tanh as _,
+    activation: Activation::Tanh,
 };
 
 static VAD_GRU_WEIGHTS: [i8; 1728] = [
@@ -254,12 +252,12 @@ static VAD_GRU_BIAS: [i8; 72] = [
 ];
 
 static VAD_GRU: GruLayer = GruLayer {
-    bias: &VAD_GRU_BIAS as *const _,
-    input_weights: &VAD_GRU_WEIGHTS as *const _,
-    recurrent_weights: &VAD_GRU_RECURRENT_WEIGHTS as *const _,
+    bias: &VAD_GRU_BIAS,
+    input_weights: &VAD_GRU_WEIGHTS,
+    recurrent_weights: &VAD_GRU_RECURRENT_WEIGHTS,
     nb_inputs: 24,
     nb_neurons: 24,
-    activation: Activation::Relu as c_int,
+    activation: Activation::Relu,
 };
 
 static NOISE_GRU_WEIGHTS: [i8; 12960] = [
@@ -1234,12 +1232,12 @@ static NOISE_GRU_BIAS: [i8; 144] = [
 ];
 
 static NOISE_GRU: GruLayer = GruLayer {
-    bias: &NOISE_GRU_BIAS as *const _,
-    input_weights: &NOISE_GRU_WEIGHTS as *const _,
-    recurrent_weights: &NOISE_GRU_RECURRENT_WEIGHTS as *const _,
+    bias: &NOISE_GRU_BIAS,
+    input_weights: &NOISE_GRU_WEIGHTS,
+    recurrent_weights: &NOISE_GRU_RECURRENT_WEIGHTS,
     nb_inputs: 90,
     nb_neurons: 48,
-    activation: Activation::Relu as c_int,
+    activation: Activation::Relu,
 };
 
 static DENOISE_GRU_WEIGHTS: [i8; 32832] = [
@@ -4116,12 +4114,12 @@ static DENOISE_GRU_BIAS: [i8; 288] = [
 ];
 
 static DENOISE_GRU: GruLayer = GruLayer {
-    bias: &DENOISE_GRU_BIAS as *const _,
-    input_weights: &DENOISE_GRU_WEIGHTS as *const _,
-    recurrent_weights: &DENOISE_GRU_RECURRENT_WEIGHTS as *const _,
+    bias: &DENOISE_GRU_BIAS,
+    input_weights: &DENOISE_GRU_WEIGHTS,
+    recurrent_weights: &DENOISE_GRU_RECURRENT_WEIGHTS,
     nb_inputs: 114,
     nb_neurons: 96,
-    activation: Activation::Relu as c_int,
+    activation: Activation::Relu,
 };
 
 static DENOISE_OUTPUT_WEIGHTS: [i8; 2112] = [
@@ -4227,11 +4225,11 @@ static DENOISE_OUTPUT_BIAS: [i8; 22] = [
 ];
 
 static DENOISE_OUTPUT: DenseLayer = DenseLayer {
-    bias: &DENOISE_OUTPUT_BIAS as *const _,
-    input_weights: &DENOISE_OUTPUT_WEIGHTS as *const _,
+    bias: &DENOISE_OUTPUT_BIAS,
+    input_weights: &DENOISE_OUTPUT_WEIGHTS,
     nb_inputs: 96,
     nb_neurons: 22,
-    activation: Activation::Sigmoid as c_int,
+    activation: Activation::Sigmoid,
 };
 
 static VAD_OUTPUT_WEIGHTS: [i8; 24] = [
@@ -4242,25 +4240,24 @@ static VAD_OUTPUT_WEIGHTS: [i8; 24] = [
 static VAD_OUTPUT_BIAS: [i8; 1] = [-50];
 
 static VAD_OUTPUT: DenseLayer = DenseLayer {
-    bias: &VAD_OUTPUT_BIAS as *const _,
-    input_weights: &VAD_OUTPUT_WEIGHTS as *const _,
+    bias: &VAD_OUTPUT_BIAS,
+    input_weights: &VAD_OUTPUT_WEIGHTS,
     nb_inputs: 24,
     nb_neurons: 1,
-    activation: Activation::Sigmoid as c_int,
+    activation: Activation::Sigmoid,
 };
 
-#[no_mangle]
-pub static rnnoise_model_orig: RnnModel = RnnModel {
+pub static MODEL: RnnModel = RnnModel {
     input_dense_size: 24,
-    input_dense: &INPUT_DENSE as *const _,
+    input_dense: INPUT_DENSE,
     vad_gru_size: 24,
-    vad_gru: &VAD_GRU as *const _,
+    vad_gru: VAD_GRU,
     noise_gru_size: 48,
-    noise_gru: &NOISE_GRU as *const _,
+    noise_gru: NOISE_GRU,
     denoise_gru_size: 96,
-    denoise_gru: &DENOISE_GRU as *const _,
+    denoise_gru: DENOISE_GRU,
     denoise_output_size: 22,
-    denoise_output: &DENOISE_OUTPUT as *const _,
+    denoise_output: DENOISE_OUTPUT,
     vad_output_size: 1,
-    vad_output: &VAD_OUTPUT as *const _,
+    vad_output: VAD_OUTPUT,
 };

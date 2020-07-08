@@ -1,5 +1,3 @@
-use libc::c_int;
-
 const MAX_NEURONS: usize = 128;
 
 const TANSIG_TABLE: [f32; 201] = [
@@ -54,7 +52,7 @@ fn relu(x: f32) -> f32 {
     x.max(0.0)
 }
 
-#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum Activation {
     Tanh = 0,
     Sigmoid = 1,
@@ -63,49 +61,45 @@ pub enum Activation {
 
 const WEIGHTS_SCALE: f32 = 1.0 / 256.0;
 
-#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct DenseLayer {
-    pub bias: *const i8,
-    pub input_weights: *const i8,
-    pub nb_inputs: c_int,
-    pub nb_neurons: c_int,
-    pub activation: c_int,
+    /// An array of length `nb_neurons`.
+    pub bias: &'static [i8],
+    /// An array of length `nb_inputs * nb_neurons`.
+    pub input_weights: &'static [i8],
+    pub nb_inputs: usize,
+    pub nb_neurons: usize,
+    pub activation: Activation,
 }
 
-unsafe impl Send for DenseLayer {}
-unsafe impl Sync for DenseLayer {}
-
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct GruLayer {
-    pub bias: *const i8,
-    pub input_weights: *const i8,
-    pub recurrent_weights: *const i8,
-    pub nb_inputs: c_int,
-    pub nb_neurons: c_int,
-    pub activation: c_int,
+    /// An array of length `3 * nb_neurons`.
+    pub bias: &'static [i8],
+    /// An array of length `3 * nb_inputs * nb_neurons`.
+    pub input_weights: &'static [i8],
+    /// An array of length `3 * nb_neurons^2`.
+    pub recurrent_weights: &'static [i8],
+    pub nb_inputs: usize,
+    pub nb_neurons: usize,
+    pub activation: Activation,
 }
 
-unsafe impl Send for GruLayer {}
-unsafe impl Sync for GruLayer {}
-
-#[repr(C)]
 pub struct RnnModel {
-    pub input_dense_size: c_int,
-    pub input_dense: *const DenseLayer,
-    pub vad_gru_size: c_int,
-    pub vad_gru: *const GruLayer,
-    pub noise_gru_size: c_int,
-    pub noise_gru: *const GruLayer,
-    pub denoise_gru_size: c_int,
-    pub denoise_gru: *const GruLayer,
-    pub denoise_output_size: c_int,
-    pub denoise_output: *const DenseLayer,
-    pub vad_output_size: c_int,
-    pub vad_output: *const DenseLayer,
+    pub input_dense_size: usize,
+    pub input_dense: DenseLayer,
+    pub vad_gru_size: usize,
+    pub vad_gru: GruLayer,
+    pub noise_gru_size: usize,
+    pub noise_gru: GruLayer,
+    pub denoise_gru_size: usize,
+    pub denoise_gru: GruLayer,
+    pub denoise_output_size: usize,
+    pub denoise_output: DenseLayer,
+    pub vad_output_size: usize,
+    pub vad_output: DenseLayer,
 }
-
-unsafe impl Send for RnnModel {}
-unsafe impl Sync for RnnModel {}
 
 #[repr(C)]
 pub struct RnnState {
@@ -115,34 +109,49 @@ pub struct RnnState {
     denoise_gru_state: *mut f32,
 }
 
+#[no_mangle]
+pub extern "C" fn init_rnn_state() -> RnnState {
+    let model = &crate::model::MODEL;
+    let vad = Box::leak(vec![0.0f32; model.vad_gru_size].into_boxed_slice());
+    let noise = Box::leak(vec![0.0f32; model.noise_gru_size].into_boxed_slice());
+    let denoise = Box::leak(vec![0.0f32; model.denoise_gru_size].into_boxed_slice());
+    RnnState {
+        model: model as *const _,
+        vad_gru_state: &mut vad[0] as *mut f32,
+        noise_gru_state: &mut noise[0] as *mut f32,
+        denoise_gru_state: &mut denoise[0] as *mut f32,
+    }
+}
+
 fn compute_dense(layer: &DenseLayer, output: &mut [f32], input: &[f32]) {
-    let m = layer.nb_inputs as isize;
-    let n = layer.nb_neurons as isize;
+    let m = layer.nb_inputs;
+    let n = layer.nb_neurons;
     let stride = n;
 
     for i in 0..n {
         // Compute update gate.
-        let mut sum = unsafe { *layer.bias.offset(i) } as f32;
+        let mut sum = layer.bias[i] as f32;
         for j in 0..m {
-            sum +=
-                unsafe { *layer.input_weights.offset(j * stride + i) } as f32 * input[j as usize];
+            sum += layer.input_weights[j * stride + i] as f32 * input[j];
         }
-        output[i as usize] = WEIGHTS_SCALE * sum;
+        output[i] = WEIGHTS_SCALE * sum;
     }
-    if layer.activation == Activation::Sigmoid as c_int {
-        for i in 0..n as usize {
-            output[i] = sigmoid_approx(output[i]);
+    match layer.activation {
+        Activation::Sigmoid => {
+            for i in 0..n {
+                output[i] = sigmoid_approx(output[i]);
+            }
         }
-    } else if layer.activation == Activation::Tanh as c_int {
-        for i in 0..n as usize {
-            output[i] = tansig_approx(output[i]);
+        Activation::Tanh => {
+            for i in 0..n {
+                output[i] = tansig_approx(output[i]);
+            }
         }
-    } else if layer.activation == Activation::Relu as c_int {
-        for i in 0..n as usize {
-            output[i] = relu(output[i]);
+        Activation::Relu => {
+            for i in 0..n {
+                output[i] = relu(output[i]);
+            }
         }
-    } else {
-        panic!("bad activation");
     }
 }
 
@@ -150,60 +159,49 @@ fn compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
     let mut z = [0.0; MAX_NEURONS];
     let mut r = [0.0; MAX_NEURONS];
     let mut h = [0.0; MAX_NEURONS];
-    let m = gru.nb_inputs as isize;
-    let n = gru.nb_neurons as isize;
+    let m = gru.nb_inputs;
+    let n = gru.nb_neurons;
     let stride = 3 * n;
 
     for i in 0..n {
         // Compute update gate.
-        let mut sum = unsafe { *gru.bias.offset(i) } as f32;
+        let mut sum = gru.bias[i] as f32;
         for j in 0..m {
-            sum += unsafe { *gru.input_weights.offset(j * stride + i) } as f32 * input[j as usize];
+            sum += gru.input_weights[j * stride + i] as f32 * input[j];
         }
         for j in 0..n {
-            sum +=
-                unsafe { *gru.recurrent_weights.offset(j * stride + i) } as f32 * state[j as usize];
+            sum += gru.recurrent_weights[j * stride + i] as f32 * state[j];
         }
-        z[i as usize] = sigmoid_approx(WEIGHTS_SCALE * sum);
+        z[i] = sigmoid_approx(WEIGHTS_SCALE * sum);
     }
     for i in 0..n {
         // Compute reset gate.
-        let mut sum = unsafe { *gru.bias.offset(n + i) } as f32;
+        let mut sum = gru.bias[n + i] as f32;
         for j in 0..m {
-            sum +=
-                unsafe { *gru.input_weights.offset(n + j * stride + i) } as f32 * input[j as usize];
+            sum += gru.input_weights[n + j * stride + i] as f32 * input[j];
         }
         for j in 0..n {
-            sum += unsafe { *gru.recurrent_weights.offset(n + j * stride + i) } as f32
-                * state[j as usize];
+            sum += gru.recurrent_weights[n + j * stride + i] as f32 * state[j];
         }
-        r[i as usize] = sigmoid_approx(WEIGHTS_SCALE * sum);
+        r[i] = sigmoid_approx(WEIGHTS_SCALE * sum);
     }
     for i in 0..n {
         // Compute output.
-        let mut sum = unsafe { *gru.bias.offset(2 * n + i) } as f32;
+        let mut sum = gru.bias[2 * n + i] as f32;
         for j in 0..m {
-            sum += unsafe { *gru.input_weights.offset(2 * n + j * stride + i) } as f32
-                * input[j as usize];
+            sum += gru.input_weights[2 * n + j * stride + i] as f32 * input[j];
         }
         for j in 0..n {
-            sum += unsafe { *gru.recurrent_weights.offset(2 * n + j * stride + i) } as f32
-                * state[j as usize]
-                * r[j as usize];
+            sum += gru.recurrent_weights[2 * n + j * stride + i] as f32 * state[j] * r[j];
         }
-        let sum = if gru.activation == Activation::Sigmoid as c_int {
-            sigmoid_approx(WEIGHTS_SCALE * sum)
-        } else if gru.activation == Activation::Tanh as c_int {
-            tansig_approx(WEIGHTS_SCALE * sum)
-        } else if gru.activation == Activation::Relu as c_int {
-            relu(WEIGHTS_SCALE * sum)
-        } else {
-            panic!("bad activation")
+        let sum = match gru.activation {
+            Activation::Sigmoid => sigmoid_approx(WEIGHTS_SCALE * sum),
+            Activation::Tanh => tansig_approx(WEIGHTS_SCALE * sum),
+            Activation::Relu => relu(WEIGHTS_SCALE * sum),
         };
-        let i = i as usize;
         h[i] = z[i] * state[i] + (1.0 - z[i]) * sum;
     }
-    for i in 0..n as usize {
+    for i in 0..n {
         state[i] = h[i];
     }
 }
@@ -229,42 +227,38 @@ fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f
     let mut dense_out = [0.0; MAX_NEURONS];
     let mut noise_input = [0.0; MAX_NEURONS * 3];
     let mut denoise_input = [0.0; MAX_NEURONS * 3];
+    let model = unsafe { &*rnn.model };
 
-    unsafe {
-        let model = &*rnn.model;
-        let vad_gru_state =
-            std::slice::from_raw_parts_mut(rnn.vad_gru_state, model.vad_gru_size as usize);
-        let noise_gru_state =
-            std::slice::from_raw_parts_mut(rnn.noise_gru_state, model.noise_gru_size as usize);
-        let denoise_gru_state =
-            std::slice::from_raw_parts_mut(rnn.denoise_gru_state, model.denoise_gru_size as usize);
-        compute_dense(&*model.input_dense, &mut dense_out, input);
-        compute_gru(&*model.vad_gru, vad_gru_state, &dense_out);
-        compute_dense(&*model.vad_output, vad, vad_gru_state);
+    let vad_gru_state =
+        unsafe { std::slice::from_raw_parts_mut(rnn.vad_gru_state, model.vad_gru_size) };
+    let noise_gru_state =
+        unsafe { std::slice::from_raw_parts_mut(rnn.noise_gru_state, model.noise_gru_size) };
+    let denoise_gru_state =
+        unsafe { std::slice::from_raw_parts_mut(rnn.denoise_gru_state, model.denoise_gru_size) };
+    compute_dense(&model.input_dense, &mut dense_out, input);
+    compute_gru(&model.vad_gru, vad_gru_state, &dense_out);
+    compute_dense(&model.vad_output, vad, vad_gru_state);
 
-        for i in 0..model.input_dense_size as usize {
-            noise_input[i] = dense_out[i];
-        }
-        for i in 0..model.vad_gru_size as usize {
-            noise_input[i + model.input_dense_size as usize] = vad_gru_state[i];
-        }
-        for i in 0..INPUT_SIZE {
-            noise_input[i + model.input_dense_size as usize + model.vad_gru_size as usize] =
-                input[i];
-        }
-        compute_gru(&*model.noise_gru, noise_gru_state, &noise_input);
-
-        for i in 0..model.vad_gru_size as usize {
-            denoise_input[i] = vad_gru_state[i];
-        }
-        for i in 0..model.noise_gru_size as usize {
-            denoise_input[i + model.vad_gru_size as usize] = noise_gru_state[i];
-        }
-        for i in 0..INPUT_SIZE {
-            denoise_input[i + model.vad_gru_size as usize + model.noise_gru_size as usize] =
-                input[i];
-        }
-        compute_gru(&*model.denoise_gru, denoise_gru_state, &denoise_input);
-        compute_dense(&*model.denoise_output, gains, denoise_gru_state);
+    for i in 0..model.input_dense_size {
+        noise_input[i] = dense_out[i];
     }
+    for i in 0..model.vad_gru_size {
+        noise_input[i + model.input_dense_size] = vad_gru_state[i];
+    }
+    for i in 0..INPUT_SIZE {
+        noise_input[i + model.input_dense_size + model.vad_gru_size] = input[i];
+    }
+    compute_gru(&model.noise_gru, noise_gru_state, &noise_input);
+
+    for i in 0..model.vad_gru_size {
+        denoise_input[i] = vad_gru_state[i];
+    }
+    for i in 0..model.noise_gru_size {
+        denoise_input[i + model.vad_gru_size] = noise_gru_state[i];
+    }
+    for i in 0..INPUT_SIZE {
+        denoise_input[i + model.vad_gru_size + model.noise_gru_size] = input[i];
+    }
+    compute_gru(&model.denoise_gru, denoise_gru_state, &denoise_input);
+    compute_dense(&model.denoise_output, gains, denoise_gru_state);
 }
