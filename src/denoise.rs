@@ -1,5 +1,3 @@
-use libc::c_int;
-
 use crate::{
     Complex, CEPS_MEM, FRAME_SIZE, FREQ_SIZE, NB_BANDS, NB_DELTA_CEPS, NB_FEATURES, PITCH_BUF_SIZE,
     PITCH_FRAME_SIZE, PITCH_MAX_PERIOD, PITCH_MIN_PERIOD, WINDOW_SIZE,
@@ -12,12 +10,12 @@ pub struct DenoiseState {
     cepstral_mem: [[f32; crate::NB_BANDS]; crate::CEPS_MEM],
     /// The index pointing to the most recent cepstrum in `cepstral_mem`. The previous cepstra are
     /// at indices mem_id - 1, mem_id - 1, etc (wrapped appropriately).
-    mem_id: c_int,
+    mem_id: usize,
     synthesis_mem: [f32; FRAME_SIZE],
     pitch_buf: [f32; crate::PITCH_BUF_SIZE],
     pitch_enh_buf: [f32; crate::PITCH_BUF_SIZE],
     last_gain: f32,
-    last_period: c_int,
+    last_period: usize,
     mem_hp_x: [f32; 2],
     lastg: [f32; crate::NB_BANDS],
     rnn: crate::rnn::RnnState,
@@ -94,10 +92,10 @@ fn rs_compute_frame_features(
         PITCH_MIN_PERIOD,
         PITCH_FRAME_SIZE,
         pitch_idx,
-        state.last_period as usize,
+        state.last_period,
         state.last_gain,
     );
-    state.last_period = pitch_idx as i32;
+    state.last_period = pitch_idx;
     state.last_gain = gain;
 
     for i in 0..WINDOW_SIZE {
@@ -138,16 +136,16 @@ fn rs_compute_frame_features(
     crate::rs_dct(features, &ly[..]);
     features[0] -= 12.0;
     features[1] -= 4.0;
-    let ceps_0_idx = state.mem_id as usize;
+    let ceps_0_idx = state.mem_id;
     let ceps_1_idx = if state.mem_id < 1 {
-        CEPS_MEM + state.mem_id as usize - 1
+        CEPS_MEM + state.mem_id - 1
     } else {
-        state.mem_id as usize - 1
+        state.mem_id - 1
     };
     let ceps_2_idx = if state.mem_id < 2 {
-        CEPS_MEM + state.mem_id as usize - 2
+        CEPS_MEM + state.mem_id - 2
     } else {
-        state.mem_id as usize - 2
+        state.mem_id - 2
     };
 
     for i in 0..NB_BANDS {
@@ -166,12 +164,12 @@ fn rs_compute_frame_features(
 
     /* Spectral variability features. */
     let mut spec_variability = 0.0;
-    if state.mem_id == CEPS_MEM as i32 {
+    if state.mem_id == CEPS_MEM {
         state.mem_id = 0;
     }
-    for i in 0..CEPS_MEM as usize {
+    for i in 0..CEPS_MEM {
         let mut min_dist = 1e15f32;
-        for j in 0..CEPS_MEM as usize {
+        for j in 0..CEPS_MEM {
             let mut dist = 0.0;
             for k in 0..NB_BANDS {
                 let tmp = state.cepstral_mem[i][k] - state.cepstral_mem[j][k];

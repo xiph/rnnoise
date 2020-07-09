@@ -103,23 +103,23 @@ pub struct RnnModel {
 
 #[repr(C)]
 pub struct RnnState {
-    model: *const RnnModel,
-    vad_gru_state: *mut f32,
-    noise_gru_state: *mut f32,
-    denoise_gru_state: *mut f32,
+    model: &'static RnnModel,
+    vad_gru_state: Vec<f32>,
+    noise_gru_state: Vec<f32>,
+    denoise_gru_state: Vec<f32>,
 }
 
 impl RnnState {
     pub fn new() -> RnnState {
         let model = &crate::model::MODEL;
-        let vad = Box::leak(vec![0.0f32; model.vad_gru_size].into_boxed_slice());
-        let noise = Box::leak(vec![0.0f32; model.noise_gru_size].into_boxed_slice());
-        let denoise = Box::leak(vec![0.0f32; model.denoise_gru_size].into_boxed_slice());
+        let vad_gru_state = vec![0.0f32; model.vad_gru_size];
+        let noise_gru_state = vec![0.0f32; model.noise_gru_size];
+        let denoise_gru_state = vec![0.0f32; model.denoise_gru_size];
         RnnState {
-            model: model as *const _,
-            vad_gru_state: &mut vad[0] as *mut f32,
-            noise_gru_state: &mut noise[0] as *mut f32,
-            denoise_gru_state: &mut denoise[0] as *mut f32,
+            model,
+            vad_gru_state,
+            noise_gru_state,
+            denoise_gru_state,
         }
     }
 }
@@ -209,18 +209,15 @@ fn compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
 
 const INPUT_SIZE: usize = 42;
 
-pub fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f32]) {
+pub fn rs_compute_rnn(rnn: &mut RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f32]) {
     let mut dense_out = [0.0; MAX_NEURONS];
     let mut noise_input = [0.0; MAX_NEURONS * 3];
     let mut denoise_input = [0.0; MAX_NEURONS * 3];
-    let model = unsafe { &*rnn.model };
+    let model = &rnn.model;
 
-    let vad_gru_state =
-        unsafe { std::slice::from_raw_parts_mut(rnn.vad_gru_state, model.vad_gru_size) };
-    let noise_gru_state =
-        unsafe { std::slice::from_raw_parts_mut(rnn.noise_gru_state, model.noise_gru_size) };
-    let denoise_gru_state =
-        unsafe { std::slice::from_raw_parts_mut(rnn.denoise_gru_state, model.denoise_gru_size) };
+    let vad_gru_state = &mut rnn.vad_gru_state[..];
+    let noise_gru_state = &mut rnn.noise_gru_state[..];
+    let denoise_gru_state = &mut rnn.denoise_gru_state[..];
     compute_dense(&model.input_dense, &mut dense_out, input);
     compute_gru(&model.vad_gru, vad_gru_state, &dense_out);
     compute_dense(&model.vad_output, vad, vad_gru_state);

@@ -37,7 +37,7 @@ noinst_PROGRAMS = examples/rnnoise_demo
 endif
 
 examples_rnnoise_demo_SOURCES = examples/rnnoise_demo.c
-examples_rnnoise_demo_LDADD = librnnoise.la $(LIBRNNOISE_RUST_DEBUG) -lpthread -ldl
+examples_rnnoise_demo_LDADD = librnnoise.la $(LIBRNNOISE_RUST_RELEASE) -lpthread -ldl
 #examples_rnnoise_demo_LDADD = librnnoise.la
 
 pkgconfigdir = $(libdir)/pkgconfig
