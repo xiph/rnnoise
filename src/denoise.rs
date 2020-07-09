@@ -22,8 +22,8 @@ pub struct DenoiseState {
 }
 
 impl DenoiseState {
-    pub fn new() -> DenoiseState {
-        DenoiseState {
+    pub fn new() -> Box<DenoiseState> {
+        Box::new(DenoiseState {
             analysis_mem: [0.0; FRAME_SIZE],
             cepstral_mem: [[0.0; NB_BANDS]; CEPS_MEM],
             mem_id: 0,
@@ -35,11 +35,15 @@ impl DenoiseState {
             mem_hp_x: [0.0; 2],
             lastg: [0.0; NB_BANDS],
             rnn: crate::rnn::RnnState::new(),
-        }
+        })
+    }
+
+    pub fn process_frame(&mut self, output: &mut [f32], input: &[f32]) -> f32 {
+        process_frame(self, output, input)
     }
 }
 
-fn rs_frame_analysis(state: &mut DenoiseState, x: &mut [Complex], ex: &mut [f32], input: &[f32]) {
+fn frame_analysis(state: &mut DenoiseState, x: &mut [Complex], ex: &mut [f32], input: &[f32]) {
     let mut buf = [0.0; WINDOW_SIZE];
     for i in 0..FRAME_SIZE {
         buf[i] = state.analysis_mem[i];
@@ -48,12 +52,12 @@ fn rs_frame_analysis(state: &mut DenoiseState, x: &mut [Complex], ex: &mut [f32]
         buf[i + crate::FRAME_SIZE] = input[i];
         state.analysis_mem[i] = input[i];
     }
-    crate::rs_apply_window(&mut buf[..]);
-    crate::rs_forward_transform(x, &buf[..]);
-    crate::rs_compute_band_corr(ex, x, x);
+    crate::apply_window(&mut buf[..]);
+    crate::forward_transform(x, &buf[..]);
+    crate::compute_band_corr(ex, x, x);
 }
 
-fn rs_compute_frame_features(
+fn compute_frame_features(
     state: &mut DenoiseState,
     x: &mut [Complex],
     p: &mut [Complex],
@@ -69,7 +73,7 @@ fn rs_compute_frame_features(
     let mut pitch_buf = [0.0; PITCH_BUF_SIZE / 2];
     let mut tmp = [0.0; NB_BANDS];
 
-    rs_frame_analysis(state, x, ex, input);
+    frame_analysis(state, x, ex, input);
     for i in 0..(PITCH_BUF_SIZE - FRAME_SIZE) {
         state.pitch_buf[i] = state.pitch_buf[i + FRAME_SIZE];
     }
@@ -77,8 +81,8 @@ fn rs_compute_frame_features(
         state.pitch_buf[PITCH_BUF_SIZE - FRAME_SIZE + i] = input[i];
     }
 
-    crate::rs_pitch_downsample(&state.pitch_buf[..], &mut pitch_buf);
-    let pitch_idx = crate::rs_pitch_search(
+    crate::pitch_downsample(&state.pitch_buf[..], &mut pitch_buf);
+    let pitch_idx = crate::pitch_search(
         &pitch_buf[(PITCH_MAX_PERIOD / 2)..],
         &pitch_buf,
         PITCH_FRAME_SIZE,
@@ -86,7 +90,7 @@ fn rs_compute_frame_features(
     );
     let pitch_idx = PITCH_MAX_PERIOD - pitch_idx;
 
-    let (pitch_idx, gain) = crate::rs_remove_doubling(
+    let (pitch_idx, gain) = crate::remove_doubling(
         &pitch_buf[..],
         PITCH_MAX_PERIOD,
         PITCH_MIN_PERIOD,
@@ -101,14 +105,14 @@ fn rs_compute_frame_features(
     for i in 0..WINDOW_SIZE {
         p_buf[i] = state.pitch_buf[PITCH_BUF_SIZE - WINDOW_SIZE - pitch_idx + i];
     }
-    crate::rs_apply_window(&mut p_buf[..]);
-    crate::rs_forward_transform(p, &p_buf[..]);
-    crate::rs_compute_band_corr(ep, p, p);
-    crate::rs_compute_band_corr(exp, x, p);
+    crate::apply_window(&mut p_buf[..]);
+    crate::forward_transform(p, &p_buf[..]);
+    crate::compute_band_corr(ep, p, p);
+    crate::compute_band_corr(exp, x, p);
     for i in 0..NB_BANDS {
         exp[i] /= (0.001 + ex[i] * ep[i]).sqrt();
     }
-    crate::rs_dct(&mut tmp[..], exp);
+    crate::dct(&mut tmp[..], exp);
     for i in 0..NB_DELTA_CEPS {
         features[NB_BANDS + 2 * NB_DELTA_CEPS + i] = tmp[i];
     }
@@ -133,7 +137,7 @@ fn rs_compute_frame_features(
         }
         return 1;
     }
-    crate::rs_dct(features, &ly[..]);
+    crate::dct(features, &ly[..]);
     features[0] -= 12.0;
     features[1] -= 4.0;
     let ceps_0_idx = state.mem_id;
@@ -187,17 +191,17 @@ fn rs_compute_frame_features(
     return 0;
 }
 
-fn rs_frame_synthesis(state: &mut DenoiseState, out: &mut [f32], y: &[Complex]) {
+fn frame_synthesis(state: &mut DenoiseState, out: &mut [f32], y: &[Complex]) {
     let mut x = [0.0; WINDOW_SIZE];
-    crate::rs_inverse_transform(&mut x[..], y);
-    crate::rs_apply_window(&mut x[..]);
+    crate::inverse_transform(&mut x[..], y);
+    crate::apply_window(&mut x[..]);
     for i in 0..FRAME_SIZE {
         out[i] = x[i] + state.synthesis_mem[i];
         state.synthesis_mem[i] = x[FRAME_SIZE + i];
     }
 }
 
-fn rs_biquad(y: &mut [f32], mem: &mut [f32], x: &[f32], b: &[f32], a: &[f32]) {
+fn biquad(y: &mut [f32], mem: &mut [f32], x: &[f32], b: &[f32], a: &[f32]) {
     for i in 0..x.len() {
         let xi = x[i] as f64;
         let yi = (x[i] + mem[0]) as f64;
@@ -207,7 +211,7 @@ fn rs_biquad(y: &mut [f32], mem: &mut [f32], x: &[f32], b: &[f32], a: &[f32]) {
     }
 }
 
-fn rs_pitch_filter(
+fn pitch_filter(
     x: &mut [Complex],
     p: &mut [Complex],
     ex: &[f32],
@@ -228,19 +232,19 @@ fn rs_pitch_filter(
         r[i] = 1.0_f32.min(0.0_f32.max(r[i])).sqrt();
         r[i] *= (ex[i] / (1e-8 + ep[i])).sqrt();
     }
-    crate::rs_interp_band_gain(&mut rf[..], &r[..]);
+    crate::interp_band_gain(&mut rf[..], &r[..]);
     for i in 0..FREQ_SIZE {
         x[i] += rf[i] * p[i];
     }
 
     let mut new_e = [0.0; NB_BANDS];
-    crate::rs_compute_band_corr(&mut new_e[..], x, x);
+    crate::compute_band_corr(&mut new_e[..], x, x);
     let mut norm = [0.0; NB_BANDS];
     let mut normf = [0.0; FREQ_SIZE];
     for i in 0..NB_BANDS {
         norm[i] = (ex[i] / (1e-8 + new_e[i])).sqrt();
     }
-    crate::rs_interp_band_gain(&mut normf[..], &norm[..]);
+    crate::interp_band_gain(&mut normf[..], &norm[..]);
     for i in 0..FREQ_SIZE {
         x[i] *= normf[i];
     }
@@ -255,11 +259,11 @@ pub extern "C" fn rnnoise_process_frame(
     unsafe {
         let output = std::slice::from_raw_parts_mut(output, FRAME_SIZE);
         let input = std::slice::from_raw_parts(input, FRAME_SIZE);
-        rs_process_frame(&mut *state, output, input)
+        process_frame(&mut *state, output, input)
     }
 }
 
-fn rs_process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32]) -> f32 {
+fn process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32]) -> f32 {
     let mut x_freq = [Complex::from(0.0); FREQ_SIZE];
     let mut p = [Complex::from(0.0); WINDOW_SIZE];
     let mut x_time = [0.0; FRAME_SIZE];
@@ -273,14 +277,14 @@ fn rs_process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32])
     let b_hp = [-2.0, 1.0];
     let mut vad_prob = [0.0];
 
-    rs_biquad(
+    biquad(
         &mut x_time[..],
         &mut state.mem_hp_x[..],
         input,
         &b_hp[..],
         &a_hp[..],
     );
-    let silence = rs_compute_frame_features(
+    let silence = compute_frame_features(
         state,
         &mut x_freq[..],
         &mut p[..],
@@ -291,8 +295,8 @@ fn rs_process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32])
         &x_time[..],
     );
     if silence == 0 {
-        crate::rnn::rs_compute_rnn(&mut state.rnn, &mut g[..], &mut vad_prob[..], &features[..]);
-        rs_pitch_filter(
+        crate::rnn::compute_rnn(&mut state.rnn, &mut g[..], &mut vad_prob[..], &features[..]);
+        pitch_filter(
             &mut x_freq[..],
             &mut p[..],
             &mut ex[..],
@@ -304,19 +308,19 @@ fn rs_process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32])
             g[i] = g[i].max(0.6 * state.lastg[i]);
             state.lastg[i] = g[i];
         }
-        crate::rs_interp_band_gain(&mut gf[..], &g[..]);
+        crate::interp_band_gain(&mut gf[..], &g[..]);
         for i in 0..FREQ_SIZE {
             x_freq[i] *= gf[i];
         }
     }
 
-    rs_frame_synthesis(state, output, &x_freq[..]);
+    frame_synthesis(state, output, &x_freq[..]);
     vad_prob[0]
 }
 
 #[no_mangle]
 pub extern "C" fn rnnoise_create(model: *const ()) -> *mut DenoiseState {
     assert!(model.is_null());
-    let ret = Box::new(DenoiseState::new());
+    let ret = DenoiseState::new();
     Box::leak(ret) as *mut _
 }

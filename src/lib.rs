@@ -5,6 +5,8 @@ mod denoise;
 mod model;
 mod rnn;
 
+pub use denoise::DenoiseState;
+
 fn inner_prod(xs: &[f32], ys: &[f32], n: usize) -> f32 {
     xs[..n]
         .iter()
@@ -105,7 +107,7 @@ fn find_best_pitch(xcorr: &[f32], ys: &[f32], len: usize) -> (usize, usize) {
 }
 
 // TODO: document this. There are some puzzles, commented below.
-pub fn rs_pitch_search(x_lp: &[f32], y: &[f32], len: usize, max_pitch: usize) -> usize {
+pub fn pitch_search(x_lp: &[f32], y: &[f32], len: usize, max_pitch: usize) -> usize {
     let lag = len + max_pitch;
 
     // FIXME: allocation
@@ -212,7 +214,7 @@ fn celt_autocorr(x: &[f32], ac: &mut [f32]) {
     }
 }
 
-pub fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32]) {
+pub fn pitch_downsample(x: &[f32], x_lp: &mut [f32]) {
     let mut ac = [0.0; 5];
     let mut lpc = [0.0; 4];
     let mut mem = [0.0; 5];
@@ -257,7 +259,7 @@ fn pitch_gain(xy: f32, xx: f32, yy: f32) -> f32 {
 const SECOND_CHECK: [usize; 16] = [0, 0, 3, 2, 3, 2, 5, 2, 3, 2, 3, 2, 5, 2, 3, 2];
 
 // TODO: document this.
-fn rs_remove_doubling(
+fn remove_doubling(
     x: &[f32],
     mut max_period: usize,
     mut min_period: usize,
@@ -389,7 +391,7 @@ const EBAND_5MS: [usize; 22] = [
 ];
 type Complex = num_complex::Complex<f32>;
 
-pub fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
+pub fn compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     for y in out.iter_mut() {
         *y = 0.0;
     }
@@ -408,7 +410,7 @@ pub fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     out[NB_BANDS - 1] *= 2.0;
 }
 
-fn rs_interp_band_gain(out: &mut [f32], band_e: &[f32]) {
+fn interp_band_gain(out: &mut [f32], band_e: &[f32]) {
     for y in out.iter_mut() {
         *y = 0.0;
     }
@@ -465,7 +467,7 @@ fn common() -> &'static CommonState {
 }
 
 /// A brute-force DCT (discrete cosine transform) of size NB_BANDS.
-pub fn rs_dct(out: &mut [f32], x: &[f32]) {
+pub fn dct(out: &mut [f32], x: &[f32]) {
     let c = common();
     for i in 0..NB_BANDS {
         let mut sum = 0.0;
@@ -476,7 +478,7 @@ pub fn rs_dct(out: &mut [f32], x: &[f32]) {
     }
 }
 
-fn rs_apply_window(x: &mut [f32]) {
+fn apply_window(x: &mut [f32]) {
     let c = common();
     for i in 0..FRAME_SIZE {
         x[i] *= c.half_window[i];
@@ -484,7 +486,7 @@ fn rs_apply_window(x: &mut [f32]) {
     }
 }
 
-fn rs_forward_transform(output: &mut [Complex], input: &[f32]) {
+fn forward_transform(output: &mut [Complex], input: &[f32]) {
     let mut complex_input = [Complex::from(0.0); WINDOW_SIZE];
     let mut scratch_output = [Complex::from(0.0); WINDOW_SIZE];
     let c = common();
@@ -502,7 +504,7 @@ fn rs_forward_transform(output: &mut [Complex], input: &[f32]) {
     }
 }
 
-fn rs_inverse_transform(output: &mut [f32], input: &[Complex]) {
+fn inverse_transform(output: &mut [f32], input: &[Complex]) {
     let mut scratch_input = [Complex::from(0.0); WINDOW_SIZE];
     let mut complex_output = [Complex::from(0.0); WINDOW_SIZE];
     let c = common();
