@@ -3,7 +3,7 @@ use std::io::Write;
 
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
 
-use rnnoise::DenoiseState;
+use nnnoiseless::DenoiseState;
 
 const FRAME_SIZE: usize = 480;
 
