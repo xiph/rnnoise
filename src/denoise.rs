@@ -23,6 +23,24 @@ pub struct DenoiseState {
     rnn: crate::rnn::RnnState,
 }
 
+impl DenoiseState {
+    pub fn new() -> DenoiseState {
+        DenoiseState {
+            analysis_mem: [0.0; FRAME_SIZE],
+            cepstral_mem: [[0.0; NB_BANDS]; CEPS_MEM],
+            mem_id: 0,
+            synthesis_mem: [0.0; FRAME_SIZE],
+            pitch_buf: [0.0; PITCH_BUF_SIZE],
+            pitch_enh_buf: [0.0; PITCH_BUF_SIZE],
+            last_gain: 0.0,
+            last_period: 0,
+            mem_hp_x: [0.0; 2],
+            lastg: [0.0; NB_BANDS],
+            rnn: crate::rnn::RnnState::new(),
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn frame_analysis(
     st: *mut DenoiseState,
@@ -383,4 +401,11 @@ fn rs_process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32])
 
     rs_frame_synthesis(state, output, &x_freq[..]);
     vad_prob[0]
+}
+
+#[no_mangle]
+pub extern "C" fn rnnoise_create(model: *const ()) -> *mut DenoiseState {
+    assert!(model.is_null());
+    let ret = Box::new(DenoiseState::new());
+    Box::leak(ret) as *mut _
 }

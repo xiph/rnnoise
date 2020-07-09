@@ -107,23 +107,19 @@ int rnnoise_get_size() {
 extern RNNState init_rnn_state();
 
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
-  memset(st, 0, sizeof(*st));
-  st->rnn = init_rnn_state();
-  return 0;
+  //memset(st, 0, sizeof(*st));
+  //st->rnn = init_rnn_state();
+  //return 0;
+  *NULL;
 }
 
-DenoiseState *rnnoise_create(RNNModel *model) {
-  DenoiseState *st;
-  st = malloc(rnnoise_get_size());
-  rnnoise_init(st, model);
-  return st;
-}
+extern DenoiseState *rnnoise_create(RNNModel *model);
 
 void rnnoise_destroy(DenoiseState *st) {
   //free(st->rnn.vad_gru_state);
   //free(st->rnn.noise_gru_state);
   //free(st->rnn.denoise_gru_state);
-  free(st);
+  //free(st);
 }
 
 extern void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const float *in);

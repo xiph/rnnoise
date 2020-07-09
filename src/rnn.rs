@@ -109,17 +109,18 @@ pub struct RnnState {
     denoise_gru_state: *mut f32,
 }
 
-#[no_mangle]
-pub extern "C" fn init_rnn_state() -> RnnState {
-    let model = &crate::model::MODEL;
-    let vad = Box::leak(vec![0.0f32; model.vad_gru_size].into_boxed_slice());
-    let noise = Box::leak(vec![0.0f32; model.noise_gru_size].into_boxed_slice());
-    let denoise = Box::leak(vec![0.0f32; model.denoise_gru_size].into_boxed_slice());
-    RnnState {
-        model: model as *const _,
-        vad_gru_state: &mut vad[0] as *mut f32,
-        noise_gru_state: &mut noise[0] as *mut f32,
-        denoise_gru_state: &mut denoise[0] as *mut f32,
+impl RnnState {
+    pub fn new() -> RnnState {
+        let model = &crate::model::MODEL;
+        let vad = Box::leak(vec![0.0f32; model.vad_gru_size].into_boxed_slice());
+        let noise = Box::leak(vec![0.0f32; model.noise_gru_size].into_boxed_slice());
+        let denoise = Box::leak(vec![0.0f32; model.denoise_gru_size].into_boxed_slice());
+        RnnState {
+            model: model as *const _,
+            vad_gru_state: &mut vad[0] as *mut f32,
+            noise_gru_state: &mut noise[0] as *mut f32,
+            denoise_gru_state: &mut denoise[0] as *mut f32,
+        }
     }
 }
 
