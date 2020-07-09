@@ -207,21 +207,6 @@ fn compute_gru(gru: &GruLayer, state: &mut [f32], input: &[f32]) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn compute_rnn(
-    rnn: *const RnnState,
-    gains: *mut f32,
-    vad: *mut f32,
-    input: *const f32,
-) {
-    unsafe {
-        let gains_slice = std::slice::from_raw_parts_mut(gains, crate::NB_BANDS);
-        let vad_slice = std::slice::from_raw_parts_mut(vad, 1);
-        let input_slice = std::slice::from_raw_parts(input, crate::NB_FEATURES);
-        rs_compute_rnn(&*rnn, gains_slice, vad_slice, input_slice);
-    }
-}
-
 const INPUT_SIZE: usize = 42;
 
 pub fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f32]) {

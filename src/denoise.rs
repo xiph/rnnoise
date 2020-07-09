@@ -41,21 +41,6 @@ impl DenoiseState {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn frame_analysis(
-    st: *mut DenoiseState,
-    x: *mut Complex,
-    ex: *mut f32,
-    input: *const f32,
-) {
-    unsafe {
-        let x_slice = std::slice::from_raw_parts_mut(x, FREQ_SIZE);
-        let ex_slice = std::slice::from_raw_parts_mut(ex, crate::NB_BANDS);
-        let input_slice = std::slice::from_raw_parts(input, FRAME_SIZE);
-        rs_frame_analysis(&mut *st, x_slice, ex_slice, input_slice);
-    }
-}
-
 fn rs_frame_analysis(state: &mut DenoiseState, x: &mut [Complex], ex: &mut [f32], input: &[f32]) {
     let mut buf = [0.0; WINDOW_SIZE];
     for i in 0..FRAME_SIZE {
@@ -68,30 +53,6 @@ fn rs_frame_analysis(state: &mut DenoiseState, x: &mut [Complex], ex: &mut [f32]
     crate::rs_apply_window(&mut buf[..]);
     crate::rs_forward_transform(x, &buf[..]);
     crate::rs_compute_band_corr(ex, x, x);
-}
-
-#[no_mangle]
-pub extern "C" fn compute_frame_features(
-    st: *mut DenoiseState,
-    x: *mut Complex,
-    p: *mut Complex,
-    ex: *mut f32,
-    ep: *mut f32,
-    exp: *mut f32,
-    features: *mut f32,
-    input: *const f32,
-) {
-    unsafe {
-        let x = std::slice::from_raw_parts_mut(x, FREQ_SIZE);
-        // Why WINDOW_SIZE and not FREQ_SIZE?
-        let p = std::slice::from_raw_parts_mut(p, WINDOW_SIZE);
-        let ex = std::slice::from_raw_parts_mut(ex, NB_BANDS);
-        let ep = std::slice::from_raw_parts_mut(ep, NB_BANDS);
-        let exp = std::slice::from_raw_parts_mut(exp, NB_BANDS);
-        let features = std::slice::from_raw_parts_mut(features, NB_FEATURES);
-        let input = std::slice::from_raw_parts(input, FRAME_SIZE);
-        rs_compute_frame_features(&mut *st, x, p, ex, ep, exp, features, input);
-    }
 }
 
 fn rs_compute_frame_features(
@@ -228,15 +189,6 @@ fn rs_compute_frame_features(
     return 0;
 }
 
-#[no_mangle]
-pub extern "C" fn frame_synthesis(state: *mut DenoiseState, out: *mut f32, y: *const Complex) {
-    unsafe {
-        let out = std::slice::from_raw_parts_mut(out, WINDOW_SIZE);
-        let y = std::slice::from_raw_parts(y, FREQ_SIZE);
-        rs_frame_synthesis(&mut *state, out, y);
-    }
-}
-
 fn rs_frame_synthesis(state: &mut DenoiseState, out: &mut [f32], y: &[Complex]) {
     let mut x = [0.0; WINDOW_SIZE];
     crate::rs_inverse_transform(&mut x[..], y);
@@ -254,25 +206,6 @@ fn rs_biquad(y: &mut [f32], mem: &mut [f32], x: &[f32], b: &[f32], a: &[f32]) {
         mem[0] = (mem[1] as f64 + (b[0] as f64 * xi - a[0] as f64 * yi)) as f32;
         mem[1] = (b[1] as f64 * xi - a[1] as f64 * yi) as f32;
         y[i] = yi as f32;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn biquad(
-    y: *mut f32,
-    mem: *mut f32,
-    x: *const f32,
-    b: *const f32,
-    a: *const f32,
-    n: c_int,
-) {
-    unsafe {
-        let y = std::slice::from_raw_parts_mut(y, n as usize);
-        let x = std::slice::from_raw_parts(x, n as usize);
-        let mem = std::slice::from_raw_parts_mut(mem, 2);
-        let b = std::slice::from_raw_parts(b, 2);
-        let a = std::slice::from_raw_parts(a, 2);
-        rs_biquad(y, mem, x, b, a);
     }
 }
 
@@ -312,26 +245,6 @@ fn rs_pitch_filter(
     crate::rs_interp_band_gain(&mut normf[..], &norm[..]);
     for i in 0..FREQ_SIZE {
         x[i] *= normf[i];
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn pitch_filter(
-    x: *mut Complex,
-    p: *mut Complex,
-    ex: *const f32,
-    ep: *const f32,
-    exp: *const f32,
-    g: *const f32,
-) {
-    unsafe {
-        let x = std::slice::from_raw_parts_mut(x, FREQ_SIZE);
-        let p = std::slice::from_raw_parts_mut(p, FREQ_SIZE);
-        let ex = std::slice::from_raw_parts(ex, NB_BANDS);
-        let ep = std::slice::from_raw_parts(ep, NB_BANDS);
-        let exp = std::slice::from_raw_parts(exp, NB_BANDS);
-        let g = std::slice::from_raw_parts(g, NB_BANDS);
-        rs_pitch_filter(x, p, ex, ep, exp, g);
     }
 }
 

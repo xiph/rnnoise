@@ -1,4 +1,3 @@
-use libc::c_int;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
@@ -103,21 +102,6 @@ fn find_best_pitch(xcorr: &[f32], ys: &[f32], len: usize) -> (usize, usize) {
         y_sq_norm = y_sq_norm.max(1.0);
     }
     (best_pitch, second_best_pitch)
-}
-
-#[no_mangle]
-pub extern "C" fn pitch_search(
-    x_lp: *const f32,
-    y: *const f32,
-    len: c_int,
-    max_pitch: c_int,
-    pitch: *mut c_int,
-) {
-    unsafe {
-        let x_slice = std::slice::from_raw_parts(x_lp, len as usize);
-        let y_slice = std::slice::from_raw_parts(y, len as usize + max_pitch as usize);
-        *pitch = rs_pitch_search(x_slice, y_slice, len as usize, max_pitch as usize) as c_int;
-    }
 }
 
 // TODO: document this. There are some puzzles, commented below.
@@ -228,22 +212,6 @@ fn celt_autocorr(x: &[f32], ac: &mut [f32]) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn pitch_downsample(
-    x: *const *const f32,
-    x_lp: *mut f32,
-    len: c_int,
-    c: c_int,
-    _xx: *const f32,
-) {
-    assert_eq!(c, 1);
-    unsafe {
-        let x_slice = std::slice::from_raw_parts(*x, len as usize);
-        let x_lp_slice = std::slice::from_raw_parts_mut(x_lp, len as usize / 2);
-        rs_pitch_downsample(x_slice, x_lp_slice);
-    }
-}
-
 pub fn rs_pitch_downsample(x: &[f32], x_lp: &mut [f32]) {
     let mut ac = [0.0; 5];
     let mut lpc = [0.0; 4];
@@ -287,32 +255,6 @@ fn pitch_gain(xy: f32, xx: f32, yy: f32) -> f32 {
 }
 
 const SECOND_CHECK: [usize; 16] = [0, 0, 3, 2, 3, 2, 5, 2, 3, 2, 3, 2, 5, 2, 3, 2];
-
-#[no_mangle]
-pub extern "C" fn remove_doubling(
-    x: *const f32,
-    max_period: c_int,
-    min_period: c_int,
-    n: c_int,
-    t0_: *mut c_int,
-    prev_period: c_int,
-    prev_gain: f32,
-) -> f32 {
-    unsafe {
-        let x_slice = std::slice::from_raw_parts(x, max_period as usize + n as usize);
-        let (t0, gain) = rs_remove_doubling(
-            x_slice,
-            max_period as usize,
-            min_period as usize,
-            n as usize,
-            *t0_ as usize,
-            prev_period as usize,
-            prev_gain,
-        );
-        *t0_ = t0 as c_int;
-        gain
-    }
-}
 
 // TODO: document this.
 fn rs_remove_doubling(
@@ -447,25 +389,6 @@ const EBAND_5MS: [usize; 22] = [
 ];
 type Complex = num_complex::Complex<f32>;
 
-#[no_mangle]
-pub extern "C" fn compute_band_energy(band_e: *mut f32, x: *const Complex) {
-    unsafe {
-        let band_e_slice = std::slice::from_raw_parts_mut(band_e, NB_BANDS);
-        let x_slice = std::slice::from_raw_parts(x, WINDOW_SIZE);
-        rs_compute_band_corr(band_e_slice, x_slice, x_slice);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn compute_band_corr(band_e: *mut f32, x: *const Complex, p: *const Complex) {
-    unsafe {
-        let band_e_slice = std::slice::from_raw_parts_mut(band_e, NB_BANDS);
-        let x_slice = std::slice::from_raw_parts(x, WINDOW_SIZE);
-        let p_slice = std::slice::from_raw_parts(p, WINDOW_SIZE);
-        rs_compute_band_corr(band_e_slice, x_slice, p_slice);
-    }
-}
-
 pub fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     for y in out.iter_mut() {
         *y = 0.0;
@@ -483,15 +406,6 @@ pub fn rs_compute_band_corr(out: &mut [f32], x: &[Complex], p: &[Complex]) {
     }
     out[0] *= 2.0;
     out[NB_BANDS - 1] *= 2.0;
-}
-
-#[no_mangle]
-pub extern "C" fn interp_band_gain(g: *mut f32, band_e: *const f32) {
-    unsafe {
-        let g_slice = std::slice::from_raw_parts_mut(g, FREQ_SIZE);
-        let band_e_slice = std::slice::from_raw_parts(band_e, NB_BANDS);
-        rs_interp_band_gain(g_slice, band_e_slice);
-    }
 }
 
 fn rs_interp_band_gain(out: &mut [f32], band_e: &[f32]) {
@@ -550,15 +464,6 @@ fn common() -> &'static CommonState {
     COMMON.get().unwrap()
 }
 
-#[no_mangle]
-pub extern "C" fn dct(out: *mut f32, input: *const f32) {
-    unsafe {
-        let out_slice = std::slice::from_raw_parts_mut(out, NB_BANDS);
-        let in_slice = std::slice::from_raw_parts(input, NB_BANDS);
-        rs_dct(out_slice, in_slice);
-    }
-}
-
 /// A brute-force DCT (discrete cosine transform) of size NB_BANDS.
 pub fn rs_dct(out: &mut [f32], x: &[f32]) {
     let c = common();
@@ -571,28 +476,11 @@ pub fn rs_dct(out: &mut [f32], x: &[f32]) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn apply_window(x: *mut f32) {
-    unsafe {
-        let x_slice = std::slice::from_raw_parts_mut(x, WINDOW_SIZE);
-        rs_apply_window(x_slice);
-    }
-}
-
 fn rs_apply_window(x: &mut [f32]) {
     let c = common();
     for i in 0..FRAME_SIZE {
         x[i] *= c.half_window[i];
         x[WINDOW_SIZE - 1 - i] *= c.half_window[i];
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn forward_transform(output: *mut Complex, input: *const f32) {
-    unsafe {
-        let output_slice = std::slice::from_raw_parts_mut(output, FREQ_SIZE);
-        let input_slice = std::slice::from_raw_parts(input, WINDOW_SIZE);
-        rs_forward_transform(output_slice, input_slice);
     }
 }
 
@@ -611,15 +499,6 @@ fn rs_forward_transform(output: &mut [Complex], input: &[f32]) {
     let norm = 1.0 / WINDOW_SIZE as f32;
     for i in 0..FREQ_SIZE {
         output[i] = scratch_output[i] * norm;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn inverse_transform(output: *mut f32, input: *const Complex) {
-    unsafe {
-        let output_slice = std::slice::from_raw_parts_mut(output, WINDOW_SIZE);
-        let input_slice = std::slice::from_raw_parts(input, FREQ_SIZE);
-        rs_inverse_transform(output_slice, input_slice);
     }
 }
 
