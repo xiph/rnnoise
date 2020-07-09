@@ -223,7 +223,7 @@ pub extern "C" fn compute_rnn(
 
 const INPUT_SIZE: usize = 42;
 
-fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f32]) {
+pub fn rs_compute_rnn(rnn: &RnnState, gains: &mut [f32], vad: &mut [f32], input: &[f32]) {
     let mut dense_out = [0.0; MAX_NEURONS];
     let mut noise_input = [0.0; MAX_NEURONS * 3];
     let mut denoise_input = [0.0; MAX_NEURONS * 3];

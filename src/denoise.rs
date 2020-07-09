@@ -276,10 +276,8 @@ fn rs_pitch_filter(
             let g_sq = g[i] * g[i];
             exp_sq * (1.0 - g_sq) / (0.001 + g_sq * (1.0 - exp_sq))
         };
-        println!("r[{}] = {}", i, r[i]);
         r[i] = 1.0_f32.min(0.0_f32.max(r[i])).sqrt();
         r[i] *= (ex[i] / (1e-8 + ep[i])).sqrt();
-        println!("r[{}] = {}", i, r[i]);
     }
     crate::rs_interp_band_gain(&mut rf[..], &r[..]);
     for i in 0..FREQ_SIZE {
@@ -317,4 +315,72 @@ pub extern "C" fn pitch_filter(
         let g = std::slice::from_raw_parts(g, NB_BANDS);
         rs_pitch_filter(x, p, ex, ep, exp, g);
     }
+}
+
+#[no_mangle]
+pub extern "C" fn rnnoise_process_frame(
+    state: *mut DenoiseState,
+    output: *mut f32,
+    input: *const f32,
+) -> f32 {
+    unsafe {
+        let output = std::slice::from_raw_parts_mut(output, FRAME_SIZE);
+        let input = std::slice::from_raw_parts(input, FRAME_SIZE);
+        rs_process_frame(&mut *state, output, input)
+    }
+}
+
+fn rs_process_frame(state: &mut DenoiseState, output: &mut [f32], input: &[f32]) -> f32 {
+    let mut x_freq = [Complex::from(0.0); FREQ_SIZE];
+    let mut p = [Complex::from(0.0); WINDOW_SIZE];
+    let mut x_time = [0.0; FRAME_SIZE];
+    let mut ex = [0.0; NB_BANDS];
+    let mut ep = [0.0; NB_BANDS];
+    let mut exp = [0.0; NB_BANDS];
+    let mut features = [0.0; NB_FEATURES];
+    let mut g = [0.0; NB_BANDS];
+    let mut gf = [1.0; FREQ_SIZE];
+    let a_hp = [-1.99599, 0.99600];
+    let b_hp = [-2.0, 1.0];
+    let mut vad_prob = [0.0];
+
+    rs_biquad(
+        &mut x_time[..],
+        &mut state.mem_hp_x[..],
+        input,
+        &b_hp[..],
+        &a_hp[..],
+    );
+    let silence = rs_compute_frame_features(
+        state,
+        &mut x_freq[..],
+        &mut p[..],
+        &mut ex[..],
+        &mut ep[..],
+        &mut exp[..],
+        &mut features[..],
+        &x_time[..],
+    );
+    if silence == 0 {
+        crate::rnn::rs_compute_rnn(&mut state.rnn, &mut g[..], &mut vad_prob[..], &features[..]);
+        rs_pitch_filter(
+            &mut x_freq[..],
+            &mut p[..],
+            &mut ex[..],
+            &mut ep[..],
+            &mut exp[..],
+            &mut g[..],
+        );
+        for i in 0..NB_BANDS {
+            g[i] = g[i].max(0.6 * state.lastg[i]);
+            state.lastg[i] = g[i];
+        }
+        crate::rs_interp_band_gain(&mut gf[..], &g[..]);
+        for i in 0..FREQ_SIZE {
+            x_freq[i] *= gf[i];
+        }
+    }
+
+    rs_frame_synthesis(state, output, &x_freq[..]);
+    vad_prob[0]
 }

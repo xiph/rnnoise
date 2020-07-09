@@ -138,39 +138,5 @@ extern void biquad(float *y, float mem[2], const float *x, const float *b, const
 extern void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
                   const float *Exp, const float *g);
 
-float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
-  int i;
-  kiss_fft_cpx X[FREQ_SIZE];
-  kiss_fft_cpx P[WINDOW_SIZE];
-  float x[FRAME_SIZE];
-  float Ex[NB_BANDS], Ep[NB_BANDS];
-  float Exp[NB_BANDS];
-  float features[NB_FEATURES];
-  float g[NB_BANDS];
-  float gf[FREQ_SIZE]={1};
-  float vad_prob = 0;
-  int silence;
-  static const float a_hp[2] = {-1.99599, 0.99600};
-  static const float b_hp[2] = {-2, 1};
-  biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
-  silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
-
-  if (!silence) {
-    compute_rnn(&st->rnn, g, &vad_prob, features);
-    pitch_filter(X, P, Ex, Ep, Exp, g);
-    for (i=0;i<NB_BANDS;i++) {
-      float alpha = .6f;
-      g[i] = MAX16(g[i], alpha*st->lastg[i]);
-      st->lastg[i] = g[i];
-    }
-    interp_band_gain(gf, g);
-    for (i=0;i<FREQ_SIZE;i++) {
-      X[i].r *= gf[i];
-      X[i].i *= gf[i];
-    }
-  }
-
-  frame_synthesis(st, out, X);
-  return vad_prob;
-}
+extern float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
 
