@@ -30,6 +30,9 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef RNNOISE_EXPORT
 # if defined(WIN32)
@@ -61,5 +64,9 @@ RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const f
 RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
 
 RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
