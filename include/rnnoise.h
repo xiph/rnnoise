@@ -53,6 +53,8 @@ typedef struct RNNModel RNNModel;
 
 RNNOISE_EXPORT int rnnoise_get_size();
 
+RNNOISE_EXPORT int rnnoise_get_frame_size();
+
 RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
 
 RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);

@@ -257,6 +257,10 @@ int rnnoise_get_size() {
   return sizeof(DenoiseState);
 }
 
+int rnnoise_get_frame_size() {
+  return FRAME_SIZE;
+}
+
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
   if (model)
