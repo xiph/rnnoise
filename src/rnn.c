@@ -162,6 +162,8 @@ void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
   float dense_out[MAX_NEURONS];
   float noise_input[MAX_NEURONS*3];
   float denoise_input[MAX_NEURONS*3];
+
+  memset(dense_out, 0, sizeof(dense_out));
   compute_dense(rnn->model->input_dense, dense_out, input);
   compute_gru(rnn->model->vad_gru, rnn->vad_gru_state, dense_out);
   compute_dense(rnn->model->vad_output, vad, rnn->vad_gru_state);
