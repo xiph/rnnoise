@@ -157,7 +157,7 @@ void rnn_compute_gru(const GRULayer *gru, float *state, const float *input)
 
 #define INPUT_SIZE 42
 
-void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
+void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input, int vad_only) {
   int i;
   float dense_out[MAX_NEURONS];
   float noise_input[MAX_NEURONS*3];
@@ -165,6 +165,9 @@ void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
   rnn_compute_dense(rnn->model->input_dense, dense_out, input);
   rnn_compute_gru(rnn->model->vad_gru, rnn->vad_gru_state, dense_out);
   rnn_compute_dense(rnn->model->vad_output, vad, rnn->vad_gru_state);
+
+  if (vad_only) return;
+
   for (i=0;i<rnn->model->input_dense_size;i++) noise_input[i] = dense_out[i];
   for (i=0;i<rnn->model->vad_gru_size;i++) noise_input[i+rnn->model->input_dense_size] = rnn->vad_gru_state[i];
   for (i=0;i<INPUT_SIZE;i++) noise_input[i+rnn->model->input_dense_size+rnn->model->vad_gru_size] = input[i];

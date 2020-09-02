@@ -469,7 +469,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in, int v
   silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
 
   if (!silence) {
-    compute_rnn(&st->rnn, g, &vad_prob, features);
+    compute_rnn(&st->rnn, g, &vad_prob, features, vad_only);
     if (vad_only)
       return vad_prob;
     pitch_filter(X, P, Ex, Ep, Exp, g);

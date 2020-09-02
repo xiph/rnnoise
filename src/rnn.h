@@ -64,6 +64,6 @@ void rnn_compute_dense(const DenseLayer *layer, float *output, const float *inpu
 
 void rnn_compute_gru(const GRULayer *gru, float *state, const float *input);
 
-void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input);
+void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input, int vad_only);
 
 #endif /* _MLP_H_ */
