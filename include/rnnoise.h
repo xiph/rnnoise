@@ -48,6 +48,10 @@
 typedef struct DenoiseState DenoiseState;
 typedef struct RNNModel RNNModel;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 RNNOISE_EXPORT int rnnoise_get_size();
 
 RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
@@ -61,5 +65,9 @@ RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const f
 RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
 
 RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
