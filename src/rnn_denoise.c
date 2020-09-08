@@ -451,7 +451,7 @@ void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const
   }
 }
 
-float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
+float rnnoise_process_frame(DenoiseState *st, float *out, const float *in, int vad_only) {
   int i;
   kiss_fft_cpx X[FREQ_SIZE];
   kiss_fft_cpx P[WINDOW_SIZE];
@@ -469,7 +469,9 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
 
   if (!silence) {
-    compute_rnn(&st->rnn, g, &vad_prob, features);
+    compute_rnn(&st->rnn, g, &vad_prob, features, vad_only);
+    if (vad_only)
+      return vad_prob;
     pitch_filter(X, P, Ex, Ep, Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
@@ -485,7 +487,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 #endif
   }
 
-  frame_synthesis(st, out, X);
+  if (!vad_only) frame_synthesis(st, out, X);
   return vad_prob;
 }
 

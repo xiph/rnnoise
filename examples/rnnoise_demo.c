@@ -33,28 +33,34 @@
 int main(int argc, char **argv) {
   int i;
   int first = 1;
-  float x[FRAME_SIZE];
-  FILE *f1, *fout;
+  float x[FRAME_SIZE], vad;
+  FILE *f1 = NULL, *fout = NULL;
   DenoiseState *st;
   st = rnnoise_create(NULL);
-  if (argc!=3) {
-    fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
+  if (argc != 2 && argc != 3) {
+    fprintf(stderr, "usage: %s <noisy speech> <output denoised>\nVAD only: %s <noisy speech>\n", argv[0]);
     return 1;
   }
-  f1 = fopen(argv[1], "r");
-  fout = fopen(argv[2], "w");
+  f1 = fopen(argv[1], "rb");
+  if (argc == 3) fout = fopen(argv[2], "wb");
+  if (!fout) fprintf(stdout, "Calculating VAD only (no denoising)\n");
   while (1) {
     short tmp[FRAME_SIZE];
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (feof(f1)) break;
     for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
-    rnnoise_process_frame(st, x, x);
+    vad = rnnoise_process_frame(st, x, x, fout == NULL);
     for (i=0;i<FRAME_SIZE;i++) tmp[i] = x[i];
-    if (!first) fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
-    first = 0;
+
+    if (fout) {
+      if (!first) fwrite(tmp, sizeof(short), FRAME_SIZE, fout);
+      first = 0;
+    } else {
+      fprintf(stdout, "%f\n", vad);
+    }
   }
   rnnoise_destroy(st);
   fclose(f1);
-  fclose(fout);
+  if (fout) fclose(fout);
   return 0;
 }
