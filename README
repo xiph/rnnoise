@@ -15,3 +15,7 @@ PCM files sampled at 48 kHz. It can be used as:
 ./examples/rnnoise_demo <number of channels> <maximum attenuation> < input.raw > output.raw
 
 The output is also a 16-bit raw PCM file.
+
+The latest version of the source is available from
+https://gitlab.xiph.org/xiph/rnnoise .  The github repository
+is a convenience copy.
