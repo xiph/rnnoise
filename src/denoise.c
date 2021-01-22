@@ -29,6 +29,10 @@
 #include "config.h"
 #endif
 
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -281,6 +285,7 @@ DenoiseState *rnnoise_create(RNNModel *model) {
 }
 
 void rnnoise_destroy(DenoiseState *st) {
+  if (common.init) opus_fft_free(common.kfft, 0);
   free(st->rnn.vad_gru_state);
   free(st->rnn.noise_gru_state);
   free(st->rnn.denoise_gru_state);

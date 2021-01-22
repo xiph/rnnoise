@@ -204,7 +204,7 @@ int _celt_autocorr(
                    int          n)
 {
    opus_val32 d;
-   int i, k;
+   int i = 0, k = 0;
    int fastN=n-lag;
    int shift;
    const opus_val16 *xptr;
