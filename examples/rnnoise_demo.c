@@ -34,15 +34,36 @@ int main(int argc, char **argv) {
   int i;
   int first = 1;
   float x[FRAME_SIZE];
+  RNNModel *model = NULL;
   FILE *f1, *fout;
+  FILE *model_fptr;
   DenoiseState *st;
-  st = rnnoise_create(NULL);
-  if (argc!=3) {
-    fprintf(stderr, "usage: %s <noisy speech> <output denoised>\n", argv[0]);
+
+  if (argc < 3) {
+    fprintf(stderr, "usage: %s <noisy speech> <output denoised> [<model file>]\n", argv[0]);
     return 1;
   }
+  if (argc >= 4) {
+    model_fptr = fopen(argv[3], "r");
+    if (!model_fptr) {
+      fprintf(stderr, "Error opening model file \n");
+      return 1;
+    }
+    model = rnnoise_model_from_file(model_fptr);
+    if (!model) {
+      fprintf(stderr, "Model not found \n");
+      return 1;
+    }
+  }
+
+  st = rnnoise_create(model);
   f1 = fopen(argv[1], "rb");
   fout = fopen(argv[2], "wb");
+  if (!f1) {
+    fprintf(stderr, "Error opening input audio file\n");
+    return 1;
+  }
+
   while (1) {
     short tmp[FRAME_SIZE];
     fread(tmp, sizeof(short), FRAME_SIZE, f1);
@@ -54,7 +75,13 @@ int main(int argc, char **argv) {
     first = 0;
   }
   rnnoise_destroy(st);
+  if (model) {
+    rnnoise_model_free(model);
+  }
   fclose(f1);
   fclose(fout);
+  if (model_fptr) {
+    fclose(model_fptr);
+  }
   return 0;
 }
