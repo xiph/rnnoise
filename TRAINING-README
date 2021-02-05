@@ -2,6 +2,8 @@
 venv
 pip install -r requirements.txt
 
+For utility to write pcm audio, see https://github.com/xiph/rnnoise/issues/8 (https://github.com/smallmuou/wavutils)
+Source of rnn_data.py and rnn_train_finetune.py here: https://github.com/xiph/rnnoise/issues/79
 
 (0) wavutils/bin/wav2pcm wavs/talking.wav raw/talking.pcm; wavutils/bin/wav2pcm wavs/noise.wav raw/noise.pcm
 
