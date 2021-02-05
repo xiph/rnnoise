@@ -1,13 +1,20 @@
 # NOTE: Required pip packages - 'numpy', 'keras'. Recommended pip packages - 'tensorflow'
+venv
+pip install -r requirements.txt
+
+
+(0) wavutils/bin/wav2pcm wavs/talking.wav raw/talking.pcm; wavutils/bin/wav2pcm wavs/noise.wav raw/noise.pcm
 
 (1) cd src ; ./compile.sh
 
-(2) ./denoise_training signal.raw noise.raw count > training.f32
+(2) ./denoise_training talking.raw noise.raw 500000 > training.f32
 
     (note the matrix size and replace 500000 87 below)
 
-(3) cd training ; ./bin2hdf5.py ../src/training.f32 500000 87 training.h5
+(3) cd training ; ipython bin2hdf5.py ../src/training.f32 500000 87 training.h5
 
-(4) ./rnn_train.py
+(4) ipython rnn_train_finetune.py
 
-(5) ./dump_rnn.py weights.hdf5 ../src/rnn_data.c trained_model.txt orig
+(5) ipython rnn_train.py
+
+(6) ipython dump_rnn.py weights.hdf5 ../src/rnn_data.c trained_model.txt orig
