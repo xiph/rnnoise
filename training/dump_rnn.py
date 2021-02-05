@@ -6,7 +6,7 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import GRU
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from keras import backend as K
 import sys
 import re

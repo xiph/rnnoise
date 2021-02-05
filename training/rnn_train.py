@@ -17,6 +17,9 @@ from keras import regularizers
 from keras.constraints import min_max_norm
 import h5py
 
+
+from tensorflow.keras.models import load_model
+
 from keras.constraints import Constraint
 from keras import backend as K
 import numpy as np
@@ -27,6 +30,7 @@ import numpy as np
 #config.gpu_options.per_process_gpu_memory_fraction = 0.42
 #set_session(tf.Session(config=config))
 
+build_from_scratch = False
 
 def my_crossentropy(y_true, y_pred):
     return K.mean(2*K.abs(y_true-0.5) * K.binary_crossentropy(y_pred, y_true), axis=-1)
@@ -46,7 +50,7 @@ def my_accuracy(y_true, y_pred):
 class WeightClip(Constraint):
     '''Clips the weights incident to each hidden unit to be inside a range
     '''
-    def __init__(self, c=2):
+    def __init__(self, c=2, **kwargs):
         self.c = c
 
     def __call__(self, p):
@@ -59,20 +63,25 @@ class WeightClip(Constraint):
 reg = 0.000001
 constraint = WeightClip(0.499)
 
-print('Build model...')
-main_input = Input(shape=(None, 42), name='main_input')
-tmp = Dense(24, activation='tanh', name='input_dense', kernel_constraint=constraint, bias_constraint=constraint)(main_input)
-vad_gru = GRU(24, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='vad_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg), kernel_constraint=constraint, recurrent_constraint=constraint, bias_constraint=constraint)(tmp)
-vad_output = Dense(1, activation='sigmoid', name='vad_output', kernel_constraint=constraint, bias_constraint=constraint)(vad_gru)
-noise_input = keras.layers.concatenate([tmp, vad_gru, main_input])
-noise_gru = GRU(48, activation='relu', recurrent_activation='sigmoid', return_sequences=True, name='noise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg), kernel_constraint=constraint, recurrent_constraint=constraint, bias_constraint=constraint)(noise_input)
-denoise_input = keras.layers.concatenate([vad_gru, noise_gru, main_input])
+if build_from_scratch:
+    print('Build model...')
+    main_input = Input(shape=(None, 42), name='main_input')
+    tmp = Dense(24, activation='tanh', name='input_dense', kernel_constraint=constraint, bias_constraint=constraint)(main_input)
+    vad_gru = GRU(24, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='vad_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg), kernel_constraint=constraint, recurrent_constraint=constraint, bias_constraint=constraint)(tmp)
+    vad_output = Dense(1, activation='sigmoid', name='vad_output', kernel_constraint=constraint, bias_constraint=constraint)(vad_gru)
+    noise_input = keras.layers.concatenate([tmp, vad_gru, main_input])
+    noise_gru = GRU(48, activation='relu', recurrent_activation='sigmoid', return_sequences=True, name='noise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg), kernel_constraint=constraint, recurrent_constraint=constraint, bias_constraint=constraint)(noise_input)
+    denoise_input = keras.layers.concatenate([vad_gru, noise_gru, main_input])
 
-denoise_gru = GRU(96, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='denoise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg), kernel_constraint=constraint, recurrent_constraint=constraint, bias_constraint=constraint)(denoise_input)
+    denoise_gru = GRU(96, activation='tanh', recurrent_activation='sigmoid', return_sequences=True, name='denoise_gru', kernel_regularizer=regularizers.l2(reg), recurrent_regularizer=regularizers.l2(reg), kernel_constraint=constraint, recurrent_constraint=constraint, bias_constraint=constraint)(denoise_input)
 
-denoise_output = Dense(22, activation='sigmoid', name='denoise_output', kernel_constraint=constraint, bias_constraint=constraint)(denoise_gru)
+    denoise_output = Dense(22, activation='sigmoid', name='denoise_output', kernel_constraint=constraint, bias_constraint=constraint)(denoise_gru)
 
-model = Model(inputs=main_input, outputs=[denoise_output, vad_output])
+    model = Model(inputs=main_input, outputs=[denoise_output, vad_output])
+
+else:
+    print('Loading trained model...')
+    model = load_model('rnnoise.h5', custom_objects={'WeightClip': WeightClip})
 
 model.compile(loss=[mycost, my_crossentropy],
               metrics=[msse],
