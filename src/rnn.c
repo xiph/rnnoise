@@ -38,6 +38,14 @@
 #include "rnn_data.h"
 #include <stdio.h>
 
+/* Keras now use double bias, so compute gru need to be modified, see https://kaixih.github.io/keras-cudnn-rnn/ 
+Please remove "//" in the following line if Keras used for training uses double bias to store parameters.*/
+//#define KERAS_DOUBLE_BIAS 1
+
+#ifndef KERAS_DOUBLE_BIAS
+#define KERAS_DOUBLE_BIAS 0
+#endif
+
 static OPUS_INLINE float tansig_approx(float x)
 {
     int i;
@@ -106,6 +114,61 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
    }
 }
 
+#if KERAS_DOUBLE_BIAS
+void compute_gru(const GRULayer *gru, float *state, const float *input)
+{
+   int i, j;
+   int N, M;
+   int stride;
+   float z[MAX_NEURONS];
+   float r[MAX_NEURONS];
+   float h[MAX_NEURONS];
+   M = gru->nb_inputs;
+   N = gru->nb_neurons;
+   stride = 3*N;
+
+   for (i=0;i<N;i++)
+   {
+      /* Compute update gate. */
+      float sum = gru->bias[i]+ gru->bias[stride+i];;
+      for (j=0;j<M;j++)
+         sum += gru->input_weights[j*stride + i]*input[j];
+      for (j=0;j<N;j++) 
+         sum += gru->recurrent_weights[j*stride + i]*state[j];
+      z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
+   }
+   for (i=0;i<N;i++)
+   {
+      /* Compute reset gate. */
+      float sum = gru->bias[N + i] + gru->bias[stride+N+i];
+      for (j=0;j<M;j++)
+         sum += gru->input_weights[N + j*stride + i]*input[j];
+      for (j=0;j<N;j++)
+         sum += gru->recurrent_weights[N + j*stride + i]*state[j];
+      r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
+   }
+   for (i=0;i<N;i++)
+   {
+      /* Compute output. */
+      float sum = gru->bias[2*N + i];
+      for (j=0;j<M;j++)
+         sum += gru->input_weights[2*N + j*stride + i]*input[j];
+      float sum_r  = gru->bias[stride + 2*N + i];
+      for (j=0;j<N;j++)
+         sum_r += (gru->recurrent_weights[2*N + j*stride + i]*state[j]);
+      sum += sum_r * r[i];
+
+      if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
+      else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
+      else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
+      else *(int*)0=0;
+      h[i] = z[i]*state[i] + (1-z[i])*sum;
+   }
+
+   for (i=0;i<N;i++)
+      state[i] = h[i];
+}
+#else
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
    int i, j;
@@ -154,6 +217,7 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
    for (i=0;i<N;i++)
       state[i] = h[i];
 }
+#endif
 
 #define INPUT_SIZE 42
 
