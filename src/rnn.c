@@ -106,6 +106,49 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
    }
 }
 
+typedef struct {
+  const GRULayer *layer_ptr;
+  float *converted_input_weights;
+  float *converted_recurrent_weights;
+} CachedConvertedWeights;
+
+CachedConvertedWeights cached_weights[16];
+
+CachedConvertedWeights* get_or_initialize_weights(const GRULayer *layer) {
+    // Check to see if an entry already exists in the cache array
+    int empty_ix = 16;
+    for (int i = 0; i < 16; i++) {
+        const GRULayer* layer_ptr = (&cached_weights[i])->layer_ptr;
+        if (layer_ptr == 0) {
+            empty_ix = i;
+            break;
+        }
+        if (layer_ptr == layer) {
+            return &cached_weights[i];
+        }
+    }
+
+    if (empty_ix >= 15) {
+        return 0; // should never hit, and we'll def. find out quickly if it does
+    }
+
+    // Convert + cache weights
+    cached_weights[empty_ix].layer_ptr = layer;
+    int weights_count = 3 * layer->nb_inputs * layer->nb_neurons;
+    cached_weights[empty_ix].converted_input_weights = malloc(weights_count * sizeof(float));
+    for (int i = 0; i < weights_count; i++) {
+        cached_weights[empty_ix].converted_input_weights[i] = layer->input_weights[i];
+    }
+
+    int recurrent_weights_count = layer->nb_neurons * layer->nb_neurons * 3;
+    cached_weights[empty_ix].converted_recurrent_weights = malloc(recurrent_weights_count * sizeof(float));
+    for (int i = 0; i < recurrent_weights_count; i++) {
+        cached_weights[empty_ix].converted_recurrent_weights[i] = layer->recurrent_weights[i];
+    }
+
+    return &cached_weights[empty_ix];
+}
+
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
    int i, j;
@@ -117,14 +160,18 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
    M = gru->nb_inputs;
    N = gru->nb_neurons;
    stride = 3*N;
+
+   // Convert input and recurrent weights into a vector of floats instead of a vector of signed characters.
+   CachedConvertedWeights* converted_weights = get_or_initialize_weights(gru);
+
    for (i=0;i<N;i++)
    {
       /* Compute update gate. */
       float sum = gru->bias[i];
       for (j=0;j<M;j++)
-         sum += gru->input_weights[j*stride + i]*input[j];
+         sum += converted_weights->converted_input_weights[j*stride + i]*input[j];
       for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[j*stride + i]*state[j];
+         sum += converted_weights->converted_recurrent_weights[j*stride + i]*state[j];
       z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
    }
    for (i=0;i<N;i++)
@@ -132,9 +179,9 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
       /* Compute reset gate. */
       float sum = gru->bias[N + i];
       for (j=0;j<M;j++)
-         sum += gru->input_weights[N + j*stride + i]*input[j];
+         sum += converted_weights->converted_input_weights[N + j*stride + i]*input[j];
       for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[N + j*stride + i]*state[j];
+         sum += converted_weights->converted_recurrent_weights[N + j*stride + i]*state[j];
       r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
    }
    for (i=0;i<N;i++)
@@ -142,9 +189,9 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
       /* Compute output. */
       float sum = gru->bias[2*N + i];
       for (j=0;j<M;j++)
-         sum += gru->input_weights[2*N + j*stride + i]*input[j];
+         sum += converted_weights->converted_input_weights[2*N + j*stride + i]*input[j];
       for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
+         sum += converted_weights->converted_recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
       if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
