@@ -166,38 +166,37 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
 
    for (i=0;i<N;i++)
    {
-      /* Compute update gate. */
-      float sum = gru->bias[i];
-      for (j=0;j<M;j++)
-         sum += converted_weights->converted_input_weights[j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += converted_weights->converted_recurrent_weights[j*stride + i]*state[j];
-      z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   for (i=0;i<N;i++)
-   {
-      /* Compute reset gate. */
-      float sum = gru->bias[N + i];
-      for (j=0;j<M;j++)
-         sum += converted_weights->converted_input_weights[N + j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += converted_weights->converted_recurrent_weights[N + j*stride + i]*state[j];
-      r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   for (i=0;i<N;i++)
-   {
-      /* Compute output. */
-      float sum = gru->bias[2*N + i];
-      for (j=0;j<M;j++)
-         sum += converted_weights->converted_input_weights[2*N + j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += converted_weights->converted_recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
-      if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
-      else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
-      else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
+      float z_sum = gru->bias[i];
+      float r_sum = gru->bias[N + i];
+      float h_sum = gru->bias[2*N + i];
+
+      for (j=0;j<M;j++) {
+         /* Compute update gate. */
+         z_sum += converted_weights->converted_input_weights[j*stride + i]*input[j];
+         /* Compute reset gate. */
+         r_sum += converted_weights->converted_input_weights[N + j*stride + i]*input[j];
+         /* Compute output. */
+         h_sum += converted_weights->converted_input_weights[2*N + j*stride + i]*input[j];
+      }
+      for (j=0;j<N;j++) {
+         /* Compute update gate. */
+         z_sum += converted_weights->converted_recurrent_weights[j*stride + i]*state[j];
+         /* Compute reset gate. */
+         r_sum += converted_weights->converted_recurrent_weights[N + j*stride + i]*state[j];
+         /* Compute output. */
+         h_sum += converted_weights->converted_recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
+      }
+
+      z[i] = sigmoid_approx(WEIGHTS_SCALE*z_sum);
+      r[i] = sigmoid_approx(WEIGHTS_SCALE*r_sum);
+
+      if (gru->activation == ACTIVATION_SIGMOID) h_sum = sigmoid_approx(WEIGHTS_SCALE*h_sum);
+      else if (gru->activation == ACTIVATION_TANH) h_sum = tansig_approx(WEIGHTS_SCALE*h_sum);
+      else if (gru->activation == ACTIVATION_RELU) h_sum = relu(WEIGHTS_SCALE*h_sum);
       else *(int*)0=0;
-      h[i] = z[i]*state[i] + (1-z[i])*sum;
+      h[i] = z[i]*state[i] + (1-z[i])*h_sum;
    }
+
    for (i=0;i<N;i++)
       state[i] = h[i];
 }
