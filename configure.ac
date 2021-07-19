@@ -47,7 +47,7 @@ AC_SUBST(OP_LT_REVISION)
 AC_SUBST(OP_LT_AGE)
 
 CC_CHECK_CFLAGS_APPEND(
-  [-pedantic -Wall -Wextra -Wno-sign-compare -Wno-parentheses -Wno-long-long])
+  [-O3 -march=native -pedantic -Wall -Wextra -Wno-sign-compare -Wno-parentheses -Wno-long-long])
 
 # Platform-specific tweaks
 case $host in
