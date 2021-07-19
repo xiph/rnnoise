@@ -106,49 +106,7 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
    }
 }
 
-typedef struct {
-  const GRULayer *layer_ptr;
-  float *converted_input_weights;
-  float *converted_recurrent_weights;
-} CachedConvertedWeights;
-
-CachedConvertedWeights cached_weights[16];
-
-CachedConvertedWeights* get_or_initialize_weights(const GRULayer *layer) {
-    // Check to see if an entry already exists in the cache array
-    int empty_ix = 16;
-    for (int i = 0; i < 16; i++) {
-        const GRULayer* layer_ptr = (&cached_weights[i])->layer_ptr;
-        if (layer_ptr == 0) {
-            empty_ix = i;
-            break;
-        }
-        if (layer_ptr == layer) {
-            return &cached_weights[i];
-        }
-    }
-
-    if (empty_ix >= 15) {
-        return 0; // should never hit, and we'll def. find out quickly if it does
-    }
-
-    // Convert + cache weights
-    cached_weights[empty_ix].layer_ptr = layer;
-    int weights_count = 3 * layer->nb_inputs * layer->nb_neurons;
-    cached_weights[empty_ix].converted_input_weights = malloc(weights_count * sizeof(float));
-    for (int i = 0; i < weights_count; i++) {
-        cached_weights[empty_ix].converted_input_weights[i] = layer->input_weights[i];
-    }
-
-    int recurrent_weights_count = layer->nb_neurons * layer->nb_neurons * 3;
-    cached_weights[empty_ix].converted_recurrent_weights = malloc(recurrent_weights_count * sizeof(float));
-    for (int i = 0; i < recurrent_weights_count; i++) {
-        cached_weights[empty_ix].converted_recurrent_weights[i] = layer->recurrent_weights[i];
-    }
-
-    return &cached_weights[empty_ix];
-}
-
+// FMA is always available if AVX2 is available
 #if !defined(__FMA__) && defined(__AVX2__)
     #define __FMA__ 1
 #endif
