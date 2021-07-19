@@ -174,8 +174,8 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
    for (int i_chunk = 0; i_chunk < n_chunk_count; i_chunk++) {
       // Load i8s
-      __m128i i8_z_sum = _mm_loadu_si128(&gru->bias[i_chunk * chunk_size]);
-      __m128i i8_r_sum = _mm_loadu_si128(&gru->bias[N + (i_chunk * chunk_size)]);
+      __m128i i8_z_sum = _mm_loadu_si128((__m128i*) &gru->bias[i_chunk * chunk_size]);
+      __m128i i8_r_sum = _mm_loadu_si128((__m128i*) &gru->bias[N + (i_chunk * chunk_size)]);
       // Sign-extend to i32s
       __m256i i32_z_sum = _mm256_cvtepi8_epi32(i8_z_sum);
       __m256i i32_r_sum = _mm256_cvtepi8_epi32(i8_r_sum);
@@ -185,8 +185,8 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
       for (j = 0; j<M; j++) {
          // Load i8s
-         __m128i z_input_weights_i8 = _mm_loadu_si128(&gru->input_weights[j*stride + (i_chunk * chunk_size)]);
-         __m128i r_input_weights_i8 = _mm_loadu_si128(&gru->input_weights[N + j*stride + (i_chunk * chunk_size)]);
+         __m128i z_input_weights_i8 = _mm_loadu_si128((__m128i*) &gru->input_weights[j*stride + (i_chunk * chunk_size)]);
+         __m128i r_input_weights_i8 = _mm_loadu_si128((__m128i*) &gru->input_weights[N + j*stride + (i_chunk * chunk_size)]);
          // Sign-extend to i32s
          __m256i z_input_weights_i32 = _mm256_cvtepi8_epi32(z_input_weights_i8);
          __m256i r_input_weights_i32 = _mm256_cvtepi8_epi32(r_input_weights_i8);
@@ -201,8 +201,8 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
       }
       for (j = 0; j<N; j++) {
          // Load i8s
-         __m128i z_recurrent_weights_i8 = _mm_loadu_si128(&gru->recurrent_weights[j*stride + (i_chunk * chunk_size)]);
-         __m128i r_recurrent_weights_i8 = _mm_loadu_si128(&gru->recurrent_weights[N + j*stride + (i_chunk * chunk_size)]);
+         __m128i z_recurrent_weights_i8 = _mm_loadu_si128((__m128i*) &gru->recurrent_weights[j*stride + (i_chunk * chunk_size)]);
+         __m128i r_recurrent_weights_i8 = _mm_loadu_si128((__m128i*) &gru->recurrent_weights[N + j*stride + (i_chunk * chunk_size)]);
          // Sign-extend to i32s
          __m256i z_recurrent_weights_i32 = _mm256_cvtepi8_epi32(z_recurrent_weights_i8);
          __m256i r_recurrent_weights_i32 = _mm256_cvtepi8_epi32(r_recurrent_weights_i8);
@@ -250,7 +250,7 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
    /* Compute output. */
    for (int i_chunk = 0; i_chunk < n_chunk_count; i_chunk++) {
       // Load i8s
-      __m128i i8_sum = _mm_loadu_si128(&gru->bias[2*N + (i_chunk * chunk_size)]);
+      __m128i i8_sum = _mm_loadu_si128((__m128i*) &gru->bias[2*N + (i_chunk * chunk_size)]);
       // Sign-extend to i32s
       __m256i i32_sum = _mm256_cvtepi8_epi32(i8_sum);
       // Convert to f32s
@@ -258,7 +258,7 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
       for (j = 0; j < M; j++) {
          // Load i8s
-         __m128i input_weights_i8 = _mm_loadu_si128(&gru->input_weights[2*N + j*stride + (i_chunk * chunk_size)]);
+         __m128i input_weights_i8 = _mm_loadu_si128((__m128i*) &gru->input_weights[2*N + j*stride + (i_chunk * chunk_size)]);
          // Sign-extend to i32s
          __m256i input_weights_i32 = _mm256_cvtepi8_epi32(input_weights_i8);
          // Convert to f32s
@@ -271,7 +271,7 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
       for (j = 0; j < N; j++) {
          // Load i8s
-         __m128i recurrent_weights_i8 = _mm_loadu_si128(&gru->recurrent_weights[2*N + j*stride + (i_chunk * chunk_size)]);
+         __m128i recurrent_weights_i8 = _mm_loadu_si128((__m128i*) &gru->recurrent_weights[2*N + j*stride + (i_chunk * chunk_size)]);
          // Sign-extend to i32s
          __m256i recurrent_weights_i32 = _mm256_cvtepi8_epi32(recurrent_weights_i8);
          // Convert to f32s
