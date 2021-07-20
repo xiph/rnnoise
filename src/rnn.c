@@ -293,7 +293,7 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
    M = gru->nb_inputs;
    N = gru->nb_neurons;
    stride = 3*N;
-   for (i = 0;i < N;i++)
+   for (i = 0; i < N; i++)
    {
       float z_sum = gru->bias[i];
       float r_sum = gru->bias[N + i];
@@ -304,7 +304,7 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
          /* Compute reset gate. */
          r_sum += gru->input_weights[N + j*stride + i]*input[j];
       }
-      for (j = 0; j<N;j++) {
+      for (j = 0; j < N; j++) {
          /* Compute update gate. */
          z_sum += gru->recurrent_weights[j*stride + i]*state[j];
          /* Compute reset gate. */
@@ -316,20 +316,19 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
    }
 
    /* Compute output. */
-   for (i = 0;i < N;i++) {
+   for (i = 0; i < N; i++) {
       float sum = gru->bias[2*N + i];
-      for (j = 0; j<M;j++)
+      for (j = 0; j<M; j++)
          sum += gru->input_weights[2*N + j*stride + i]*input[j];
-      for (j = 0; j<N;j++)
+      for (j = 0; j<N; j++)
          sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
       if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
       else *(int*)0=0;
-      h[i] = z[i]*state[i] + (1-z[i])*sum;
+      h[i] = z[i] * state[i] + (1 - z[i]) * sum;
    }
-   for (i = 0;i < N;i++)
-      state[i] = h[i ];
+   memcpy((void*) &state, (void*) &h, N * sizeof(float));
 }
 
 #define INPUT_SIZE 42
