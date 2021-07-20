@@ -106,13 +106,20 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
    }
 }
 
-// FMA is always available if AVX2 is available
-#if !defined(__FMA__) && defined(__AVX2__)
-    #define __FMA__ 1
-#endif
-
-#if defined(__AVX2__) && defined(__FMA__)
+#if defined(__AVX2__)
 #include <immintrin.h>
+
+// Use native FMA if available, otherwise fall back to multiply + add
+#ifdef __FMA__
+#define _MM256_FMADD_PS(a, b, c) _mm256_fmadd_ps(a, b, c)
+#else
+static OPUS_INLINE __m256 _mm256_fmadd_ps_fallback(__m256 a, __m256 b, __m256 c) {
+   __m256 multiplied = _mm256_mul_ps(a, b);
+   return _mm256_add_ps(c, multiplied);
+}
+
+#define _MM256_FMADD_PS(a, b, c) _mm256_fmadd_ps_fallback(a, b, c)
+#endif
 
 void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 {
@@ -154,8 +161,8 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
          __m256 input_v = _mm256_broadcast_ss(&input[j]);
 
-         z_sum = _mm256_fmadd_ps(z_input_weights, input_v, z_sum);
-         r_sum = _mm256_fmadd_ps(r_input_weights, input_v, r_sum);
+         z_sum = _MM256_FMADD_PS(z_input_weights, input_v, z_sum);
+         r_sum = _MM256_FMADD_PS(r_input_weights, input_v, r_sum);
       }
       for (j = 0; j<N; j++) {
          // Load i8s
@@ -170,8 +177,8 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
          __m256 state_v = _mm256_broadcast_ss(&state[j]);
 
-         z_sum = _mm256_fmadd_ps(z_recurrent_weights, state_v, z_sum);
-         r_sum = _mm256_fmadd_ps(r_recurrent_weights, state_v, r_sum);
+         z_sum = _MM256_FMADD_PS(z_recurrent_weights, state_v, z_sum);
+         r_sum = _MM256_FMADD_PS(r_recurrent_weights, state_v, r_sum);
       }
 
       // Store sums
@@ -224,7 +231,7 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
          __m256 input_v = _mm256_broadcast_ss(&input[j]);
 
-         sum = _mm256_fmadd_ps(input_weights, input_v, sum) ;
+         sum = _MM256_FMADD_PS(input_weights, input_v, sum) ;
       }
 
       for (j = 0; j < N; j++) {
@@ -238,7 +245,7 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
          float state_times_r = state[j] * r[j];
          __m256 state_times_r_v = _mm256_broadcast_ss(&state_times_r);
 
-         sum = _mm256_fmadd_ps(recurrent_weights, state_times_r_v, sum);
+         sum = _MM256_FMADD_PS(recurrent_weights, state_times_r_v, sum);
       }
 
       // Store sums
@@ -269,9 +276,9 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
-   // Check if we support AVX2 and FMA and use the SIMD-accelerated function if so
-   #if defined(__AVX2__) && defined(__FMA__)
-   if (__builtin_cpu_supports("avx2") && __builtin_cpu_supports("fma")) {
+   // Check if we support AVX2 support and use the SIMD-accelerated function if so
+   #if defined(__AVX2__)
+   if (__builtin_cpu_supports("avx2")) {
       compute_gru_avx2(gru, state, input);
       return;
    }
