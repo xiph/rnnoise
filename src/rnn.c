@@ -243,7 +243,7 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
          __m256 recurrent_weights = _mm256_cvtepi32_ps(recurrent_weights_i32);
 
          float state_times_r = state[j] * r[j];
-         __m256 state_times_r_v = _mm256_broadcast_ss(&state_times_r);
+         __m256 state_times_r_v = _mm256_set1_ps(state_times_r);
 
          sum = _MM256_FMADD_PS(recurrent_weights, state_times_r_v, sum);
       }
