@@ -38,6 +38,96 @@
 #include "rnn_data.h"
 #include <stdio.h>
 
+// SIMD
+#include <immintrin.h>
+#include <cpuid.h>
+#include <xsaveintrin.h>
+
+
+/**************************************
+ * GCC
+ *************************************/
+
+int is_avx2_supported() {
+#if defined(__AVX2__)
+   int cpuInfo[4];
+   int max_function_id;
+   int os_enables_XSAVE_XRSTORE = 0;
+   int os_enables_avx = 0;
+   int os_enables_avx2 = 0;
+#ifdef __FMA__
+   int os_enables_fma = 0;
+#endif
+
+   // Check for GCC or WIN32, other compilers not supported
+#if !defined(__GNUC__) && !defined(_WIN32)
+   return 0;
+#endif
+
+   // WIN32 must support CPUID
+#if defined(_WIN32) && !defined(HAS_CPUID)
+   return 0;
+#endif
+
+
+   // Check CPU support
+   // See: https://github.com/gcc-mirror/gcc/blob/master/gcc/config/i386/cpuid.h
+
+#if defined(__GNUC__)
+   __cpuid_count(0, 0, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
+#else // _WIN32
+   __cpuid(cpuInfo, 0);
+#endif
+   max_function_id = cpuInfo[0];
+   if (max_function_id < 1) {
+      return 0;
+   }
+
+#if defined(__GNUC__)
+   __cpuid_count(1, 0, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
+#else // _WIN32
+   __cpuid(cpuInfo, 1);
+#endif
+   os_enables_XSAVE_XRSTORE = cpuInfo[2] & 0x08000000;
+   if(!os_enables_XSAVE_XRSTORE) {
+      return 0;
+   }
+
+#ifdef __FMA__
+   os_enables_fma = cpuInfo[2] & 0x00001000;
+#endif
+   os_enables_avx = cpuInfo[2] & 0x10000000;
+
+   if (max_function_id >= 7) {
+#if defined(__GNUC__)
+      __cpuid_count(7, 0, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
+#else // _WIN32
+      __cpuid(cpuInfo, 7);
+#endif
+      os_enables_avx2 = cpuInfo[1] & 0x00000020;
+   }
+
+
+   // Check OS support
+   // See: https://stackoverflow.com/a/22521619/2750093
+   // AVX2 and FMA: no check available, checking AVX only is your best bet
+   if(os_enables_avx) {
+      unsigned long long xcrFeatureMask = _xgetbv(0); // _XCR_XFEATURE_ENABLED_MASK
+      os_enables_avx = (xcrFeatureMask & 0x6) == 0x6;
+   }
+
+#ifdef __FMA__
+   return os_enables_avx && os_enables_avx2 && os_enables_fma;
+#else
+   return os_enables_avx && os_enables_avx2;
+#endif
+
+#else
+   return 0;
+#endif
+}
+
+
 static OPUS_INLINE float tansig_approx(float x)
 {
     int i;
@@ -276,14 +366,6 @@ void compute_gru_avx2(const GRULayer *gru, float *state, const float *input)
 
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
-   // Check if we support AVX2 support and use the SIMD-accelerated function if so
-   #if defined(__AVX2__)
-   if (__builtin_cpu_supports("avx2")) {
-      compute_gru_avx2(gru, state, input);
-      return;
-   }
-   #endif
-
    int i, j;
    int N, M;
    int stride;
@@ -339,16 +421,16 @@ void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input) {
   float noise_input[MAX_NEURONS*3];
   float denoise_input[MAX_NEURONS*3];
   compute_dense(rnn->model->input_dense, dense_out, input);
-  compute_gru(rnn->model->vad_gru, rnn->vad_gru_state, dense_out);
+  rnn->compute_gru_fct(rnn->model->vad_gru, rnn->vad_gru_state, dense_out);
   compute_dense(rnn->model->vad_output, vad, rnn->vad_gru_state);
   for (i = 0;i<rnn->model->input_dense_size;i++) noise_input[i] = dense_out[i];
   for (i = 0;i<rnn->model->vad_gru_size;i++) noise_input[i+rnn->model->input_dense_size] = rnn->vad_gru_state[i];
   for (i = 0;i<INPUT_SIZE;i++) noise_input[i+rnn->model->input_dense_size+rnn->model->vad_gru_size] = input[i];
-  compute_gru(rnn->model->noise_gru, rnn->noise_gru_state, noise_input);
+  rnn->compute_gru_fct(rnn->model->noise_gru, rnn->noise_gru_state, noise_input);
 
   for (i = 0;i<rnn->model->vad_gru_size;i++) denoise_input[i] = rnn->vad_gru_state[i];
   for (i = 0;i<rnn->model->noise_gru_size;i++) denoise_input[i+rnn->model->vad_gru_size] = rnn->noise_gru_state[i];
   for (i = 0;i<INPUT_SIZE;i++) denoise_input[i+rnn->model->vad_gru_size+rnn->model->noise_gru_size] = input[i];
-  compute_gru(rnn->model->denoise_gru, rnn->denoise_gru_state, denoise_input);
+  rnn->compute_gru_fct(rnn->model->denoise_gru, rnn->denoise_gru_state, denoise_input);
   compute_dense(rnn->model->denoise_output, gains, rnn->denoise_gru_state);
 }

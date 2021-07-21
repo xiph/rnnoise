@@ -28,6 +28,7 @@ struct RNNState {
   float *vad_gru_state;
   float *noise_gru_state;
   float *denoise_gru_state;
+  void (*compute_gru_fct)(const GRULayer *gru, float *state, const float *input);
 };
 
 
