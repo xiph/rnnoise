@@ -1,4 +1,12 @@
 RNNoise is a noise suppression library based on a recurrent neural network.
+A description of the algorithm is provided in the following paper:
+
+J.-M. Valin, A Hybrid DSP/Deep Learning Approach to Real-Time Full-Band Speech
+Enhancement, Proceedings of IEEE Multimedia Signal Processing (MMSP) Workshop,
+arXiv:1709.08243, 2018.
+https://arxiv.org/pdf/1709.08243.pdf
+
+An interactive demo is available at: https://jmvalin.ca/demo/rnnoise/
 
 To compile, just type:
 % ./autogen.sh
