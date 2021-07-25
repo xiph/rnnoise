@@ -270,6 +270,14 @@ int rnnoise_init(DenoiseState *st, RNNModel *model) {
   st->rnn.vad_gru_state = calloc(sizeof(float), st->rnn.model->vad_gru_size);
   st->rnn.noise_gru_state = calloc(sizeof(float), st->rnn.model->noise_gru_size);
   st->rnn.denoise_gru_state = calloc(sizeof(float), st->rnn.model->denoise_gru_size);
+  st->rnn.compute_gru_fct = &compute_gru;
+
+#if defined(__AVX2__)
+  if(is_avx2_supported() == 1) {
+    st->rnn.compute_gru_fct = &compute_gru_avx2;
+  }
+#endif
+
   return 0;
 }
 
