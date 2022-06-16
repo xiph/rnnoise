@@ -27,6 +27,16 @@ import numpy as np
 #config.gpu_options.per_process_gpu_memory_fraction = 0.42
 #set_session(tf.Session(config=config))
 
+import gc
+import tensorflow as tf
+physical_devices = tf.config.list_physical_devices('GPU')
+print(physical_devices)
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+class MyCustomCallback(keras.callbacks.Callback):
+    def on_epoch_end(self,epoch,logs=None):
+        gc.collect()
+
 
 def my_crossentropy(y_true, y_pred):
     return K.mean(2*K.abs(y_true-0.5) * K.binary_crossentropy(y_pred, y_true), axis=-1)
