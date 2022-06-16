@@ -1,3 +1,5 @@
+Note: This entire Repo is being reworked to bring the documentation up to date and fix several issues and making it easier to train and install.
+
 RNNoise is a noise suppression library based on a recurrent neural network.
 
 To compile, just type:
