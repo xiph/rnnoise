@@ -36,6 +36,7 @@
 #include "tansig_table.h"
 #include "rnn.h"
 #include "rnn_data.h"
+#include "unreachable.h"
 #include <stdio.h>
 
 static OPUS_INLINE float tansig_approx(float x)
@@ -102,7 +103,7 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
       for (i=0;i<N;i++)
          output[i] = relu(output[i]);
    } else {
-     __builtin_unreachable();
+     unreachable();
    }
 }
 
@@ -148,7 +149,7 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
       if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
-      else __builtin_unreachable();
+      else unreachable();
       h[i] = z[i]*state[i] + (1-z[i])*sum;
    }
    for (i=0;i<N;i++)
