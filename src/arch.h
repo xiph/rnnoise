@@ -259,3 +259,25 @@ static OPUS_INLINE int celt_isnan(float x)
 #endif
 
 #endif /* ARCH_H */
+
+/*-----------
+ * Portable macros for denoting unreachable code.
+ * In such a scenario, perform an early exit ('panic').
+ */
+
+#if _MSC_VER // MSVC
+#define unreachable() __assume(0)
+
+#elif __GNUC__ || __clang__ || __MINGW32__
+#define unreachable() __builtin_unreachable()
+
+/* Borland case is unknown.
+   More investigation needed. */
+
+//--#elif __BORLANDC__
+//--#define unreachable() __builtin_unreachable()
+
+#else
+#define unreachable() {}
+
+#endif
