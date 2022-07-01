@@ -278,6 +278,6 @@ static OPUS_INLINE int celt_isnan(float x)
 //--#define unreachable() __builtin_unreachable()
 
 #else
-#define unreachable() {}
+#define unreachable()
 
 #endif
