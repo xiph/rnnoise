@@ -165,7 +165,7 @@ void interp_band_gain(float *g, const float *bandE) {
 
 CommonState common;
 
-static void check_init() {
+static void check_init(void) {
   int i;
   if (common.init) return;
   common.kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
@@ -253,11 +253,11 @@ static void apply_window(float *x) {
   }
 }
 
-int rnnoise_get_size() {
+int rnnoise_get_size(void) {
   return sizeof(DenoiseState);
 }
 
-int rnnoise_get_frame_size() {
+int rnnoise_get_frame_size(void) {
   return FRAME_SIZE;
 }
 
