@@ -258,4 +258,15 @@ static OPUS_INLINE int celt_isnan(float x)
 #endif
 #endif
 
+#if __STDC_VERSION__ < 199901L || (__STDC_VERSION__ > 201000L && __STDC_NO_VLA__ == 1)
+   #define NO_VLA
+#endif
+
+#ifdef NO_VLA
+    #include <malloc.h>
+    #define stackalloc(type, id, len) type *id = alloca(len)
+#else
+    #define stackalloc(type, id, len) type id[len]
+#endif
+
 #endif /* ARCH_H */
