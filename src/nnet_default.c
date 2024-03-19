@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Octasic Inc.
-                 2012-2017 Jean-Marc Valin */
+/* Copyright (c) 2018-2019 Mozilla
+                 2023 Amazon */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -29,29 +29,7 @@
 #include "config.h"
 #endif
 
-#include <math.h>
-#include "opus_types.h"
-#include "common.h"
-#include "arch.h"
-#include "tansig_table.h"
-#include "rnn.h"
-#include "rnnoise_data.h"
-#include <stdio.h>
 
+#define RTCD_ARCH c
 
-#define INPUT_SIZE 42
-
-
-void compute_rnn(const RNNoise *model, RNNState *rnn, float *gains, float *vad, const float *input) {
-  float tmp[MAX_NEURONS];
-  float tmp2[MAX_NEURONS];
-  /*for (int i=0;i<INPUT_SIZE;i++) printf("%f ", input[i]);printf("\n");*/
-  compute_generic_conv1d(&model->conv1, tmp, rnn->conv1_state, input, CONV1_IN_SIZE, ACTIVATION_TANH, 0);
-  compute_generic_conv1d(&model->conv2, tmp2, rnn->conv2_state, tmp, CONV2_IN_SIZE, ACTIVATION_TANH, 0);
-  compute_generic_gru(&model->gru1_input, &model->gru1_recurrent, rnn->gru1_state, tmp2, 0);
-  compute_generic_gru(&model->gru2_input, &model->gru2_recurrent, rnn->gru2_state, rnn->gru1_state, 0);
-  compute_generic_gru(&model->gru3_input, &model->gru3_recurrent, rnn->gru3_state, rnn->gru2_state, 0);
-  compute_generic_dense(&model->dense_out, gains, rnn->gru3_state, ACTIVATION_SIGMOID, 0);
-  /*for (int i=0;i<22;i++) printf("%f ", gains[i]);printf("\n");*/
-  *vad = .5;
-}
+#include "nnet_arch.h"

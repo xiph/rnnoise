@@ -28,38 +28,22 @@
 #define RNN_H_
 
 #include "rnnoise.h"
+#include "rnnoise_data.h"
 
 #include "opus_types.h"
 
 #define WEIGHTS_SCALE (1.f/256)
 
-#define MAX_NEURONS 128
+#define MAX_NEURONS 1024
 
-#define ACTIVATION_TANH    0
-#define ACTIVATION_SIGMOID 1
-#define ACTIVATION_RELU    2
-
-typedef signed char rnn_weight;
 
 typedef struct {
-  const rnn_weight *bias;
-  const rnn_weight *input_weights;
-  int nb_inputs;
-  int nb_neurons;
-  int activation;
-} DenseLayer;
-
-typedef struct {
-  const rnn_weight *bias;
-  const rnn_weight *input_weights;
-  const rnn_weight *recurrent_weights;
-  int nb_inputs;
-  int nb_neurons;
-  int activation;
-} GRULayer;
-
-typedef struct RNNState RNNState;
-
-void compute_rnn(RNNState *rnn, float *gains, float *vad, const float *input);
+  float conv1_state[CONV1_STATE_SIZE];
+  float conv2_state[CONV2_STATE_SIZE];
+  float gru1_state[GRU1_STATE_SIZE];
+  float gru2_state[GRU2_STATE_SIZE];
+  float gru3_state[GRU3_STATE_SIZE];
+} RNNState;
+void compute_rnn(const RNNoise *model, RNNState *rnn, float *gains, float *vad, const float *input);
 
 #endif /* RNN_H_ */

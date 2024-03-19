@@ -12,20 +12,27 @@ noinst_HEADERS = src/arch.h  \
 		 src/common.h  \
 		 src/_kiss_fft_guts.h  \
 		 src/kiss_fft.h  \
+		 src/nnet_arch.h \
 		 src/opus_types.h  \
 		 src/pitch.h  \
 		 src/rnn_data.h  \
 		 src/rnn.h  \
-		 src/tansig_table.h
+		 src/rnnoise_data.h \
+		 src/tansig_table.h \
+		 src/vec_neon.h \
+		 src/vec.h \
+		 src/vec_avx.h
 
 librnnoise_la_SOURCES = \
 	src/denoise.c \
 	src/rnn.c \
-	src/rnn_data.c \
-	src/rnn_reader.c \
 	src/pitch.c \
 	src/kiss_fft.c \
-	src/celt_lpc.c
+	src/celt_lpc.c \
+	src/nnet.c \
+	src/nnet_default.c \
+	src/parse_lpcnet_weights.c \
+	src/rnnoise_data.c
 
 librnnoise_la_LIBADD = $(DEPS_LIBS) $(lrintf_lib) $(LIBM)
 librnnoise_la_LDFLAGS = -no-undefined \

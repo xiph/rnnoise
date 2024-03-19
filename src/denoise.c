@@ -39,7 +39,6 @@
 #include "pitch.h"
 #include "arch.h"
 #include "rnn.h"
-#include "rnn_data.h"
 
 #define FRAME_SIZE_SHIFT 2
 #define FRAME_SIZE (120<<FRAME_SIZE_SHIFT)
@@ -84,6 +83,7 @@ typedef struct {
 } CommonState;
 
 struct DenoiseState {
+  RNNoise model;
   float analysis_mem[FRAME_SIZE];
   float cepstral_mem[CEPS_MEM][NB_BANDS];
   int memid;
@@ -261,15 +261,11 @@ int rnnoise_get_frame_size() {
   return FRAME_SIZE;
 }
 
+extern const WeightArray rnnoise_arrays[];
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
-  if (model)
-    st->rnn.model = model;
-  else
-    st->rnn.model = &rnnoise_model_orig;
-  st->rnn.vad_gru_state = calloc(sizeof(float), st->rnn.model->vad_gru_size);
-  st->rnn.noise_gru_state = calloc(sizeof(float), st->rnn.model->noise_gru_size);
-  st->rnn.denoise_gru_state = calloc(sizeof(float), st->rnn.model->denoise_gru_size);
+  init_rnnoise(&st->model, rnnoise_arrays);
+  (void)model;
   return 0;
 }
 
@@ -281,9 +277,6 @@ DenoiseState *rnnoise_create(RNNModel *model) {
 }
 
 void rnnoise_destroy(DenoiseState *st) {
-  free(st->rnn.vad_gru_state);
-  free(st->rnn.noise_gru_state);
-  free(st->rnn.denoise_gru_state);
   free(st);
 }
 
@@ -473,7 +466,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
 
   if (!silence) {
-    compute_rnn(&st->rnn, g, &vad_prob, features);
+    compute_rnn(&st->model, &st->rnn, g, &vad_prob, features);
     pitch_filter(X, P, Ex, Ep, Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
