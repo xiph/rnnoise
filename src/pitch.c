@@ -37,9 +37,6 @@
 
 #include "pitch.h"
 #include "common.h"
-//#include "modes.h"
-//#include "stack_alloc.h"
-//#include "mathops.h"
 #include "celt_lpc.h"
 #include "math.h"
 
@@ -145,7 +142,7 @@ static void celt_fir5(const opus_val16 *x,
 }
 
 
-void rnnoise_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
+void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
       int len, int C)
 {
    int i;
@@ -180,7 +177,7 @@ void rnnoise_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
       x_lp[0] += SHR32(HALF32(HALF32(x[1][1])+x[1][0]), shift);
    }
 
-   _rnnoise_autocorr(x_lp, ac, NULL, 0,
+   rnn_autocorr(x_lp, ac, NULL, 0,
                   4, len>>1);
 
    /* Noise floor -40 dB */
@@ -200,7 +197,7 @@ void rnnoise_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
 #endif
    }
 
-   _rnnoise_lpc(lpc, ac, 4);
+   rnn_lpc(lpc, ac, 4);
    for (i=0;i<4;i++)
    {
       tmp = MULT16_16_Q15(QCONST16(.9f,15), tmp);
@@ -215,7 +212,7 @@ void rnnoise_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
    celt_fir5(x_lp, lpc2, x_lp, len>>1, mem);
 }
 
-void rnnoise_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
+void rnn_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
       opus_val32 *xcorr, int len, int max_pitch)
 {
 
@@ -280,7 +277,7 @@ void rnnoise_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
 #endif
 }
 
-void rnnoise_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
+void rnn_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
                   int len, int max_pitch, int *pitch)
 {
    int i, j;
@@ -329,7 +326,7 @@ void rnnoise_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
 #ifdef FIXED_POINT
    maxcorr =
 #endif
-   rnnoise_pitch_xcorr(x_lp4, y_lp4, xcorr, len>>2, max_pitch>>2);
+   rnn_pitch_xcorr(x_lp4, y_lp4, xcorr, len>>2, max_pitch>>2);
 
    find_best_pitch(xcorr, y_lp4, len>>2, max_pitch>>2, best_pitch
 #ifdef FIXED_POINT
@@ -420,7 +417,7 @@ static opus_val16 compute_pitch_gain(opus_val32 xy, opus_val32 xx, opus_val32 yy
 #endif
 
 static const int second_check[16] = {0, 0, 3, 2, 3, 2, 5, 2, 3, 2, 3, 2, 5, 2, 3, 2};
-opus_val16 rnnoise_remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
+opus_val16 rnn_remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
       int N, int *T0_, int prev_period, opus_val16 prev_gain)
 {
    int k, i, T, T0;
