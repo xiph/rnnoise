@@ -168,7 +168,7 @@ CommonState common;
 static void check_init() {
   int i;
   if (common.init) return;
-  common.kfft = opus_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
+  common.kfft = rnn_fft_alloc_twiddles(2*FRAME_SIZE, NULL, NULL, NULL, 0);
   for (i=0;i<FRAME_SIZE;i++)
     common.half_window[i] = sin(.5*M_PI*sin(.5*M_PI*(i+.5)/FRAME_SIZE) * sin(.5*M_PI*(i+.5)/FRAME_SIZE));
   for (i=0;i<NB_BANDS;i++) {
@@ -218,7 +218,7 @@ static void forward_transform(kiss_fft_cpx *out, const float *in) {
     x[i].r = in[i];
     x[i].i = 0;
   }
-  opus_fft(common.kfft, x, y, 0);
+  rnn_fft(common.kfft, x, y, 0);
   for (i=0;i<FREQ_SIZE;i++) {
     out[i] = y[i];
   }
@@ -236,7 +236,7 @@ static void inverse_transform(float *out, const kiss_fft_cpx *in) {
     x[i].r = x[WINDOW_SIZE - i].r;
     x[i].i = -x[WINDOW_SIZE - i].i;
   }
-  opus_fft(common.kfft, x, y, 0);
+  rnn_fft(common.kfft, x, y, 0);
   /* output in reverse order for IFFT. */
   out[0] = WINDOW_SIZE*y[0].r;
   for (i=1;i<WINDOW_SIZE;i++) {
