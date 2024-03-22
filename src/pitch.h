@@ -38,13 +38,13 @@
 //#include "cpu_support.h"
 #include "arch.h"
 
-void pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
+void rnnoise_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
       int len, int C);
 
-void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
+void rnnoise_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
                   int len, int max_pitch, int *pitch);
 
-opus_val16 remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
+opus_val16 rnnoise_remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
       int N, int *T0, int prev_period, opus_val16 prev_gain);
 
 
@@ -143,7 +143,7 @@ static OPUS_INLINE opus_val32 celt_inner_prod(const opus_val16 *x,
    return xy;
 }
 
-void celt_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
+void rnnoise_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
       opus_val32 *xcorr, int len, int max_pitch);
 
 #endif
