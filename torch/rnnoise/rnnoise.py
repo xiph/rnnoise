@@ -16,6 +16,8 @@ class RNNoise(nn.Module):
         self.gru2 = nn.GRU(self.gru_size, self.gru_size, batch_first=True)
         self.gru3 = nn.GRU(self.gru_size, self.gru_size, batch_first=True)
         self.dense_out = nn.Linear(self.gru_size, self.output_dim)
+        nb_params = sum(p.numel() for p in self.parameters())
+        print(f"model: {nb_params} weights")
 
     def forward(self, features, states=None):
         #print(states)
