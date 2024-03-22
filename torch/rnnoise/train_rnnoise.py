@@ -114,6 +114,7 @@ if __name__ == '__main__':
                 states = [state.detach() for state in states]
                 gain = gain[:,4:,:]
                 target_gain = torch.clamp(gain, min=0)
+                target_gain = target_gain*(torch.tanh(5*target_gain)**2)
 
                 loss = torch.mean(mask(gain)*(pred_gain**gamma - target_gain**gamma)**2)
 
