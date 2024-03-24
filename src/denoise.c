@@ -69,9 +69,9 @@
 extern const struct RNNModel rnnoise_model_orig;
 
 
-static const opus_int16 eband5ms[] = {
-/*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
-  0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100
+static const opus_int16 eband5ms[NB_BANDS+2] = {
+/*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2 3.8 4.4 5k 5.8 6.8  8k 9.6 11.4 13.6 16.6 20k*/
+  0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 19, 22, 25, 29, 34, 40, 48, 57, 68, 83, 100
 };
 
 
@@ -99,8 +99,8 @@ struct DenoiseState {
 
 static void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   int i;
-  float sum[NB_BANDS] = {0};
-  for (i=0;i<NB_BANDS-1;i++)
+  float sum[NB_BANDS+2] = {0};
+  for (i=0;i<NB_BANDS+1;i++)
   {
     int j;
     int band_size;
@@ -114,18 +114,18 @@ static void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
       sum[i+1] += frac*tmp;
     }
   }
-  sum[0] *= 2;
-  sum[NB_BANDS-1] *= 2;
+  sum[1] = (sum[0]+sum[1])*2/3;
+  sum[NB_BANDS] = (sum[NB_BANDS]+sum[NB_BANDS+1])*2/3;
   for (i=0;i<NB_BANDS;i++)
   {
-    bandE[i] = sum[i];
+    bandE[i] = sum[i+1];
   }
 }
 
 static void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *P) {
   int i;
-  float sum[NB_BANDS] = {0};
-  for (i=0;i<NB_BANDS-1;i++)
+  float sum[NB_BANDS+2] = {0};
+  for (i=0;i<NB_BANDS+1;i++)
   {
     int j;
     int band_size;
@@ -139,27 +139,28 @@ static void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_ff
       sum[i+1] += frac*tmp;
     }
   }
-  sum[0] *= 2;
-  sum[NB_BANDS-1] *= 2;
+  sum[1] = (sum[0]+sum[1])*2/3;
+  sum[NB_BANDS] = (sum[NB_BANDS]+sum[NB_BANDS+1])*2/3;
   for (i=0;i<NB_BANDS;i++)
   {
-    bandE[i] = sum[i];
+    bandE[i] = sum[i+1];
   }
 }
 
 static void interp_band_gain(float *g, const float *bandE) {
-  int i;
+  int i,j;
   memset(g, 0, FREQ_SIZE);
-  for (i=0;i<NB_BANDS-1;i++)
+  for (i=1;i<NB_BANDS;i++)
   {
-    int j;
     int band_size;
     band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
     for (j=0;j<band_size;j++) {
       float frac = (float)j/band_size;
-      g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = (1-frac)*bandE[i] + frac*bandE[i+1];
+      g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = (1-frac)*bandE[i-1] + frac*bandE[i];
     }
   }
+  for (j=0;j<eband5ms[1]<<FRAME_SIZE_SHIFT;j++) g[j] = bandE[0];
+  for (j=eband5ms[NB_BANDS]<<FRAME_SIZE_SHIFT;j<eband5ms[NB_BANDS+1]<<FRAME_SIZE_SHIFT;j++) g[j] = bandE[NB_BANDS-1];
 }
 
 
