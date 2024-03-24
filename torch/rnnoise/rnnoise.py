@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 
 class RNNoise(nn.Module):
-    def __init__(self, input_dim=45, output_dim=22, cond_size=128, gru_size=256):
+    def __init__(self, input_dim=65, output_dim=32, cond_size=128, gru_size=256):
         super(RNNoise, self).__init__()
 
         self.input_dim = input_dim
