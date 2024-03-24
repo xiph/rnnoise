@@ -40,8 +40,7 @@
 #include "arch.h"
 #include "rnn.h"
 
-#define FRAME_SIZE_SHIFT 2
-#define FRAME_SIZE (120<<FRAME_SIZE_SHIFT)
+#define FRAME_SIZE 480
 #define WINDOW_SIZE (2*FRAME_SIZE)
 #define FREQ_SIZE (FRAME_SIZE + 1)
 
@@ -69,9 +68,9 @@
 extern const struct RNNModel rnnoise_model_orig;
 
 
-static const opus_int16 eband5ms[NB_BANDS+2] = {
-/*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2 3.8 4.4 5k 5.8 6.8  8k 9.6 11.4 13.6 16.6 20k*/
-  0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 19, 22, 25, 29, 34, 40, 48, 57, 68, 83, 100
+static const opus_int16 eband20ms[NB_BANDS+2] = {
+/*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2 3.8 4.4 5k   5.8  6.8  8k   9.6 11.4 13.6 16.6  20k */
+  0,  4,  8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 76, 88, 100, 116, 136, 160, 192, 228, 272, 332, 400
 };
 
 
@@ -104,12 +103,12 @@ static void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   {
     int j;
     int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    band_size = eband20ms[i+1]-eband20ms[i];
     for (j=0;j<band_size;j++) {
       float tmp;
       float frac = (float)j/band_size;
-      tmp = SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r);
-      tmp += SQUARE(X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i);
+      tmp = SQUARE(X[eband20ms[i] + j].r);
+      tmp += SQUARE(X[eband20ms[i] + j].i);
       sum[i] += (1-frac)*tmp;
       sum[i+1] += frac*tmp;
     }
@@ -129,12 +128,12 @@ static void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_ff
   {
     int j;
     int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    band_size = eband20ms[i+1]-eband20ms[i];
     for (j=0;j<band_size;j++) {
       float tmp;
       float frac = (float)j/band_size;
-      tmp = X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r * P[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r;
-      tmp += X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i * P[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i;
+      tmp = X[eband20ms[i] + j].r * P[eband20ms[i] + j].r;
+      tmp += X[eband20ms[i] + j].i * P[eband20ms[i] + j].i;
       sum[i] += (1-frac)*tmp;
       sum[i+1] += frac*tmp;
     }
@@ -153,14 +152,14 @@ static void interp_band_gain(float *g, const float *bandE) {
   for (i=1;i<NB_BANDS;i++)
   {
     int band_size;
-    band_size = (eband5ms[i+1]-eband5ms[i])<<FRAME_SIZE_SHIFT;
+    band_size = eband20ms[i+1]-eband20ms[i];
     for (j=0;j<band_size;j++) {
       float frac = (float)j/band_size;
-      g[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j] = (1-frac)*bandE[i-1] + frac*bandE[i];
+      g[eband20ms[i] + j] = (1-frac)*bandE[i-1] + frac*bandE[i];
     }
   }
-  for (j=0;j<eband5ms[1]<<FRAME_SIZE_SHIFT;j++) g[j] = bandE[0];
-  for (j=eband5ms[NB_BANDS]<<FRAME_SIZE_SHIFT;j<eband5ms[NB_BANDS+1]<<FRAME_SIZE_SHIFT;j++) g[j] = bandE[NB_BANDS-1];
+  for (j=0;j<eband20ms[1];j++) g[j] = bandE[0];
+  for (j=eband20ms[NB_BANDS];j<eband20ms[NB_BANDS+1];j++) g[j] = bandE[NB_BANDS-1];
 }
 
 
