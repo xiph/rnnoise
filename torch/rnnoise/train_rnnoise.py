@@ -41,7 +41,7 @@ class RNNoiseDataset(torch.utils.data.Dataset):
         self.sequence_length = sequence_length
 
         self.data = np.memmap(features_file, dtype='float32', mode='r')
-        dim = 87
+        dim = 68
 
         self.nb_sequences = self.data.shape[0]//self.sequence_length//dim
         self.data = self.data[:self.nb_sequences*self.sequence_length*dim]
@@ -52,7 +52,7 @@ class RNNoiseDataset(torch.utils.data.Dataset):
         return self.nb_sequences
 
     def __getitem__(self, index):
-        return self.data[index, :, :42].copy(), self.data[index, :, 42:64].copy()
+        return self.data[index, :, :45].copy(), self.data[index, :, 45:-1].copy()
 
 def mask(g):
     return torch.clamp(g+1, max=1)

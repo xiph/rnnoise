@@ -54,9 +54,8 @@
 #define NB_BANDS 22
 
 #define CEPS_MEM 8
-#define NB_DELTA_CEPS 6
 
-#define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
+#define NB_FEATURES (2*NB_BANDS+1)
 
 
 #ifndef TRAINING
@@ -304,15 +303,12 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
                                   float *Ex, float *Ep, float *Exp, float *features, const float *in) {
   int i;
   float E = 0;
-  float *ceps_0, *ceps_1, *ceps_2;
-  float spec_variability = 0;
   float Ly[NB_BANDS];
   float p[WINDOW_SIZE];
   float pitch_buf[PITCH_BUF_SIZE>>1];
   int pitch_index;
   float gain;
   float *(pre[1]);
-  float tmp[NB_BANDS];
   float follow, logMax;
   frame_analysis(st, X, Ex, in);
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
@@ -334,11 +330,8 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   compute_band_energy(Ep, P);
   compute_band_corr(Exp, X, P);
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
-  dct(tmp, Exp);
-  for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
-  features[NB_BANDS+2*NB_DELTA_CEPS] -= 1.3;
-  features[NB_BANDS+2*NB_DELTA_CEPS+1] -= 0.9;
-  features[NB_BANDS+3*NB_DELTA_CEPS] = .01*(pitch_index-300);
+  dct(&features[NB_BANDS], Exp);
+  features[2*NB_BANDS] = .01*(pitch_index-300);
   logMax = -2;
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {
@@ -356,38 +349,6 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   dct(features, Ly);
   features[0] -= 12;
   features[1] -= 4;
-  ceps_0 = st->cepstral_mem[st->memid];
-  ceps_1 = (st->memid < 1) ? st->cepstral_mem[CEPS_MEM+st->memid-1] : st->cepstral_mem[st->memid-1];
-  ceps_2 = (st->memid < 2) ? st->cepstral_mem[CEPS_MEM+st->memid-2] : st->cepstral_mem[st->memid-2];
-  for (i=0;i<NB_BANDS;i++) ceps_0[i] = features[i];
-  st->memid++;
-  for (i=0;i<NB_DELTA_CEPS;i++) {
-    features[i] = ceps_0[i] + ceps_1[i] + ceps_2[i];
-    features[NB_BANDS+i] = ceps_0[i] - ceps_2[i];
-    features[NB_BANDS+NB_DELTA_CEPS+i] =  ceps_0[i] - 2*ceps_1[i] + ceps_2[i];
-  }
-  /* Spectral variability features. */
-  if (st->memid == CEPS_MEM) st->memid = 0;
-  for (i=0;i<CEPS_MEM;i++)
-  {
-    int j;
-    float mindist = 1e15f;
-    for (j=0;j<CEPS_MEM;j++)
-    {
-      int k;
-      float dist=0;
-      for (k=0;k<NB_BANDS;k++)
-      {
-        float tmp;
-        tmp = st->cepstral_mem[i][k] - st->cepstral_mem[j][k];
-        dist += tmp*tmp;
-      }
-      if (j!=i)
-        mindist = MIN32(mindist, dist);
-    }
-    spec_variability += mindist;
-  }
-  features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
   return TRAINING && E < 0.1;
 }
 
@@ -560,7 +521,7 @@ int main(int argc, char **argv) {
       rand_resp(a_sig, b_sig);
       lowpass = FREQ_SIZE * 3000./24000. * pow(50., rand()/(double)RAND_MAX);
       for (i=0;i<NB_BANDS;i++) {
-        if (eband5ms[i]<<FRAME_SIZE_SHIFT > lowpass) {
+        if (eband20ms[i] > lowpass) {
           band_lp = i;
           break;
         }
@@ -626,7 +587,6 @@ int main(int argc, char **argv) {
 #if 1
     fwrite(features, sizeof(float), NB_FEATURES, stdout);
     fwrite(g, sizeof(float), NB_BANDS, stdout);
-    fwrite(Ln, sizeof(float), NB_BANDS, stdout);
     fwrite(&vad, sizeof(float), 1, stdout);
 #endif
   }
