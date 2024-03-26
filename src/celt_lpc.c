@@ -33,6 +33,7 @@
 #include "arch.h"
 #include "common.h"
 #include "pitch.h"
+#include "denoise.h"
 
 void rnn_lpc(
       opus_val16       *_lpc, /* out: [0...p-1] LPC coefficients      */
@@ -101,8 +102,9 @@ int rnn_autocorr(
    int fastN=n-lag;
    int shift;
    const opus_val16 *xptr;
-   opus_val16 xx[n];
+   opus_val16 xx[PITCH_BUF_SIZE/2];
    celt_assert(n>0);
+   celt_assert(n<=PITCH_BUF_SIZE/2)
    celt_assert(overlap>=0);
    if (overlap == 0)
    {

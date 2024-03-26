@@ -34,8 +34,6 @@
 #ifndef PITCH_H
 #define PITCH_H
 
-//#include "modes.h"
-//#include "cpu_support.h"
 #include "arch.h"
 
 void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,

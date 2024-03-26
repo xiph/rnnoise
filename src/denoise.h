@@ -34,6 +34,13 @@
 #define NB_BANDS 32
 #define NB_FEATURES (2*NB_BANDS+1)
 
+
+#define PITCH_MIN_PERIOD 60
+#define PITCH_MAX_PERIOD 768
+#define PITCH_FRAME_SIZE 960
+#define PITCH_BUF_SIZE (PITCH_MAX_PERIOD+PITCH_FRAME_SIZE)
+
+
 extern const int eband20ms[];
 
 

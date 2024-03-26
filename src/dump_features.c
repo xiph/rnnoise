@@ -24,6 +24,11 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -86,6 +91,7 @@ int main(int argc, char **argv) {
     fread(tmp, sizeof(short), FRAME_SIZE, f2);
   }
   while (1) {
+    int silence;
     kiss_fft_cpx X[FREQ_SIZE], Y[FREQ_SIZE], N[FREQ_SIZE], P[WINDOW_SIZE];
     float Ex[NB_BANDS], Ey[NB_BANDS], En[NB_BANDS], Ep[NB_BANDS];
     float Exp[NB_BANDS];
@@ -160,9 +166,9 @@ int main(int argc, char **argv) {
     rnn_frame_analysis(st, Y, Ey, x);
     rnn_frame_analysis(noise_state, N, En, n);
     for (i=0;i<NB_BANDS;i++) Ln[i] = log10(1e-2+En[i]);
-    int silence = rnn_compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, xn);
+    silence = rnn_compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, xn);
     rnn_pitch_filter(X, P, Ex, Ep, Exp, g);
-    //printf("%f %d\n", noisy->last_gain, noisy->last_period);
+    /*printf("%f %d\n", noisy->last_gain, noisy->last_period);*/
     for (i=0;i<NB_BANDS;i++) {
       g[i] = sqrt((Ey[i]+1e-3)/(Ex[i]+1e-3));
       if (g[i] > 1) g[i] = 1;
