@@ -10,8 +10,10 @@ lib_LTLIBRARIES = librnnoise.la
 noinst_HEADERS = src/arch.h  \
 		 src/celt_lpc.h  \
 		 src/common.h  \
+		 src/denoise.h \
 		 src/_kiss_fft_guts.h  \
 		 src/kiss_fft.h  \
+		 src/nnet.h \
 		 src/nnet_arch.h \
 		 src/opus_types.h  \
 		 src/pitch.h  \
@@ -21,7 +23,8 @@ noinst_HEADERS = src/arch.h  \
 		 src/tansig_table.h \
 		 src/vec_neon.h \
 		 src/vec.h \
-		 src/vec_avx.h
+		 src/vec_avx.h \
+		 src/x86/x86_arch_macros.h
 
 librnnoise_la_SOURCES = \
 	src/denoise.c \
