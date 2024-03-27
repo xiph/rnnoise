@@ -33,7 +33,6 @@
 #include "opus_types.h"
 #include "common.h"
 #include "arch.h"
-#include "tansig_table.h"
 #include "rnn.h"
 #include "rnnoise_data.h"
 #include <stdio.h>

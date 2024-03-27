@@ -17,10 +17,8 @@ noinst_HEADERS = src/arch.h  \
 		 src/nnet_arch.h \
 		 src/opus_types.h  \
 		 src/pitch.h  \
-		 src/rnn_data.h  \
 		 src/rnn.h  \
 		 src/rnnoise_data.h \
-		 src/tansig_table.h \
 		 src/vec_neon.h \
 		 src/vec.h \
 		 src/vec_avx.h \
