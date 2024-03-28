@@ -9,9 +9,10 @@ https://arxiv.org/pdf/1709.08243.pdf
 An interactive demo is available at: https://jmvalin.ca/demo/rnnoise/
 
 To compile, just type:
-% ./autogen.sh
-% ./configure
-% make
+1. brew install automake autoconf libtool (For mac users only)
+2. ./autogen.sh
+3. ./configure
+4. make
 
 Optionally:
 % make install
