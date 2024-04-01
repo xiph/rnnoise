@@ -27,7 +27,7 @@ training_group.add_argument('--epochs', type=int, help='number of training epoch
 training_group.add_argument('--sequence-length', type=int, help='sequence length, default: 2000', default=2000)
 training_group.add_argument('--lr-decay', type=float, help='learning rate decay factor, default: 1e-3', default=1e-3)
 training_group.add_argument('--initial-checkpoint', type=str, help='initial checkpoint to start training from, default: None', default=None)
-training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.5)', default=0.5)
+training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.1667)', default=0.1667)
 
 args = parser.parse_args()
 
