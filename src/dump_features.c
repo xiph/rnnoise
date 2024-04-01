@@ -43,6 +43,7 @@ int lowpass = FREQ_SIZE;
 int band_lp = NB_BANDS;
 
 #define SEQUENCE_LENGTH 2000
+#define SEQUENCE_SAMPLES (SEQUENCE_LENGTH*FRAME_SIZE)
 
 static unsigned rand_lcg(unsigned *seed) {
   *seed = 1664525**seed + 1013904223;
@@ -68,7 +69,7 @@ float xn[SEQUENCE_LENGTH*FRAME_SIZE];
 
     
 int main(int argc, char **argv) {
-  int i;
+  int i, j;
   int count=0;
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
@@ -115,6 +116,7 @@ int main(int argc, char **argv) {
     float Exp[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
+    float speech_rms, noise_rms;
     if ((count%1000)==0) fprintf(stderr, "%d\r", count);
     speech_pos = (rand_lcg(&seed)*2.3283e-10)*speech_length;
     noise_pos = (rand_lcg(&seed)*2.3283e-10)*noise_length;
@@ -131,8 +133,8 @@ int main(int argc, char **argv) {
     start_pos = IMIN(start_pos, SEQUENCE_LENGTH*FRAME_SIZE);
     RNN_CLEAR(speech16, start_pos);
 
-    speech_gain = pow(10., (-40+(rand()%60))/20.);
-    noise_gain = pow(10., (-30+(rand()%50))/20.);
+    speech_gain = pow(10., (-40+(rand()%55))/20.);
+    noise_gain = pow(10., (-30+(rand()%40))/20.);
     if (rand()%10==0) noise_gain = 0;
     noise_gain *= speech_gain;
     rand_resp(a_noise, b_noise);
@@ -146,13 +148,12 @@ int main(int argc, char **argv) {
     }
 
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
-      int j;
       E[frame] = 0;
       for(j=0;j<FRAME_SIZE;j++) {
         float s = speech16[frame*FRAME_SIZE+j];
         E[frame] += s*s;
-        x[frame*FRAME_SIZE+j] = speech_gain*speech16[frame*FRAME_SIZE+j];
-        n[frame*FRAME_SIZE+j] = noise_gain*noise16[frame*FRAME_SIZE+j];
+        x[frame*FRAME_SIZE+j] = speech16[frame*FRAME_SIZE+j];
+        n[frame*FRAME_SIZE+j] = noise16[frame*FRAME_SIZE+j];
       }
     }
 
@@ -165,8 +166,29 @@ int main(int argc, char **argv) {
     RNN_CLEAR(mem, 2);
     rnn_biquad(n, mem, n, b_noise, a_noise, SEQUENCE_LENGTH*FRAME_SIZE);
 
+    speech_rms = noise_rms = 0;
+    for (j=start_pos;j<SEQUENCE_SAMPLES;j++) {
+      speech_rms += x[j]*x[j];
+    }
+    for (j=0;j<SEQUENCE_SAMPLES;j++) {
+      noise_rms += n[j]*n[j];
+    }
+    if (SEQUENCE_SAMPLES-start_pos > 10*FRAME_SIZE) {
+      speech_rms = sqrt(speech_rms/(SEQUENCE_SAMPLES-start_pos));
+    } else {
+      speech_rms = 3000;
+    }
+    if (speech_rms < 300) speech_rms = 300;
+    noise_rms = sqrt(noise_rms/SEQUENCE_SAMPLES);
+
+    speech_gain *= 3000.f/(1+speech_rms);
+    noise_gain *= 3000.f/(1+noise_rms);
+    for (j=0;j<SEQUENCE_SAMPLES;j++) {
+      x[j] *= speech_gain;
+      n[j] *= noise_gain;
+    }
+
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
-      int j;
       int vad;
       for(j=0;j<FRAME_SIZE;j++) {
         xn[frame*FRAME_SIZE+j] = x[frame*FRAME_SIZE+j] + n[frame*FRAME_SIZE+j];
