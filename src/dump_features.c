@@ -33,6 +33,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include "rnnoise.h"
 #include "common.h"
 #include "denoise.h"
@@ -65,6 +66,10 @@ kiss_fft_cpx *load_rir(const char *rir_file, kiss_fft_state *fft, int early) {
   int i;
   FILE *f;
   f = fopen(rir_file, "rb");
+  if (f==NULL) {
+    fprintf(stderr, "cannot open %s: %s\n", rir_file, strerror(errno));
+    exit(1);
+  }
   x = (kiss_fft_cpx*)calloc(fft->nfft, sizeof(*x));
   X = (kiss_fft_cpx*)calloc(fft->nfft, sizeof(*X));
   len = fread(rir, sizeof(*rir), RIR_MAX_DURATION, f);
@@ -86,6 +91,10 @@ void load_rir_list(const char *list_file, struct rir_list *rirs) {
   char rir_filename[FILENAME_MAX_SIZE];
   FILE *f;
   f = fopen(list_file, "rb");
+  if (f==NULL) {
+    fprintf(stderr, "cannot open %s: %s\n", list_file, strerror(errno));
+    exit(1);
+  }
   rirs->nb_rirs = 0;
   allocated = 2;
   rirs->fft = rnn_fft_alloc_twiddles(RIR_FFT_SIZE, NULL, NULL, NULL, 0);
@@ -124,10 +133,11 @@ void rir_filter_sequence(const struct rir_list *rirs, float *audio, int rir_id, 
     for (j=0;j<RIR_FFT_SIZE;j++) {
       kiss_fft_cpx tmp;
       C_MUL(tmp, X[j], Y[j]);
-      X[j] = tmp;
+      X[j].r = tmp.r*RIR_FFT_SIZE/2;
+      X[j].i = tmp.i*RIR_FFT_SIZE/2;
     }
     rnn_ifft_c(rirs->fft, X, y);
-    for (j=0;j<IMIN(SEQUENCE_SAMPLES-i, RIR_FFT_SIZE/2);j++) audio[i+j] = x[RIR_FFT_SIZE/2+j].r;
+    for (j=0;j<IMIN(SEQUENCE_SAMPLES-i, RIR_FFT_SIZE/2);j++) audio[i+j] = y[RIR_FFT_SIZE/2+j].r;
     i += RIR_FFT_SIZE/2;
   }
 }
@@ -202,11 +212,11 @@ int main(int argc, char **argv) {
   fseek(f2, 0, SEEK_SET);
 
   maxCount = atoi(argv[4]);
-  load_rir_list(rir_filename, &rirs);
+  if (rir_filename) load_rir_list(rir_filename, &rirs);
   for (count=0;count<maxCount;count++) {
     int rir_id;
     long speech_pos, noise_pos;
-    int start_pos;
+    int start_pos=0;
     float E[SEQUENCE_LENGTH] = {0};
     float mem[2]={0};
     int frame;
@@ -288,15 +298,13 @@ int main(int argc, char **argv) {
       n[j] *= noise_gain;
       xn[j] = x[j] + n[j];
     }
-    rir_id = rand()%rirs.nb_rirs;
-    rir_filter_sequence(&rirs, x, rir_id, 1);
-    rir_filter_sequence(&rirs, xn, rir_id, 0);
-
+    if (rir_filename && rand()%2==0) {
+      rir_id = rand()%rirs.nb_rirs;
+      rir_filter_sequence(&rirs, x, rir_id, 1);
+      rir_filter_sequence(&rirs, xn, rir_id, 0);
+    }
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
       int vad;
-      /*for(j=0;j<FRAME_SIZE;j++) {
-        xn[frame*FRAME_SIZE+j] = x[frame*FRAME_SIZE+j] + n[frame*FRAME_SIZE+j];
-      }*/
       rnn_frame_analysis(st, Y, Ey, &x[frame*FRAME_SIZE]);
       silence = rnn_compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, &xn[frame*FRAME_SIZE]);
       /*rnn_pitch_filter(X, P, Ex, Ep, Exp, g);*/
