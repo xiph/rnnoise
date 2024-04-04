@@ -38,12 +38,99 @@
 #include "denoise.h"
 #include "arch.h"
 #include "kiss_fft.h"
+#include "src/_kiss_fft_guts.h"
 
 int lowpass = FREQ_SIZE;
 int band_lp = NB_BANDS;
 
 #define SEQUENCE_LENGTH 2000
 #define SEQUENCE_SAMPLES (SEQUENCE_LENGTH*FRAME_SIZE)
+
+#define RIR_FFT_SIZE 65536
+#define RIR_MAX_DURATION (RIR_FFT_SIZE/2)
+#define FILENAME_MAX_SIZE 1000
+
+struct rir_list {
+  int nb_rirs;
+  int block_size;
+  kiss_fft_state *fft;
+  kiss_fft_cpx **rir;
+  kiss_fft_cpx **early;
+};
+
+kiss_fft_cpx *load_rir(const char *rir_file, kiss_fft_state *fft, int early) {
+  kiss_fft_cpx *x, *X;
+  float rir[RIR_MAX_DURATION];
+  int len;
+  int i;
+  FILE *f;
+  f = fopen(rir_file, "rb");
+  x = (kiss_fft_cpx*)calloc(fft->nfft, sizeof(*x));
+  X = (kiss_fft_cpx*)calloc(fft->nfft, sizeof(*X));
+  len = fread(rir, sizeof(*rir), RIR_MAX_DURATION, f);
+  if (early) {
+    for (i=0;i<240;i++) {
+      rir[480+i] *= (1 - i/240.f);
+    }
+    RNN_CLEAR(&rir[240+480], RIR_MAX_DURATION-240-480);
+  }
+  for (i=0;i<len;i++) x[i].r = rir[i];
+  rnn_fft_c(fft, x, X);
+  free(x);
+  fclose(f);
+  return X;
+}
+
+void load_rir_list(const char *list_file, struct rir_list *rirs) {
+  int allocated;
+  char rir_filename[FILENAME_MAX_SIZE];
+  FILE *f;
+  f = fopen(list_file, "rb");
+  rirs->nb_rirs = 0;
+  allocated = 2;
+  rirs->fft = rnn_fft_alloc_twiddles(RIR_FFT_SIZE, NULL, NULL, NULL, 0);
+  rirs->rir = malloc(allocated*sizeof(rirs->rir[0]));
+  rirs->early = malloc(allocated*sizeof(rirs->early[0]));
+  while (fgets(rir_filename, FILENAME_MAX_SIZE, f) != NULL) {
+    /* Chop trailing newline. */
+    rir_filename[strcspn(rir_filename, "\n")] = 0;
+    if (rirs->nb_rirs+1 > allocated) {
+      allocated *= 2;
+      rirs->rir = realloc(rirs->rir, allocated*sizeof(rirs->rir[0]));
+      rirs->early = realloc(rirs->early, allocated*sizeof(rirs->early[0]));
+    }
+    rirs->rir[rirs->nb_rirs] = load_rir(rir_filename, rirs->fft, 0);
+    rirs->early[rirs->nb_rirs] = load_rir(rir_filename, rirs->fft, 1);
+    rirs->nb_rirs++;
+  }
+  fclose(f);
+}
+
+void rir_filter_sequence(const struct rir_list *rirs, float *audio, int rir_id, int early) {
+  int i;
+  kiss_fft_cpx x[RIR_FFT_SIZE] = {{0,0}};
+  kiss_fft_cpx y[RIR_FFT_SIZE] = {{0,0}};
+  kiss_fft_cpx X[RIR_FFT_SIZE] = {{0,0}};
+  const kiss_fft_cpx *Y;
+  if (early) Y = rirs->early[rir_id];
+  else Y = rirs->rir[rir_id];
+  i=0;
+  while (i<SEQUENCE_SAMPLES) {
+    int j;
+    RNN_COPY(&x[0], &x[RIR_FFT_SIZE/2], RIR_FFT_SIZE/2);
+    for (j=0;j<IMIN(SEQUENCE_SAMPLES-i, RIR_FFT_SIZE/2);j++) x[RIR_FFT_SIZE/2+j].r = audio[i+j];
+    for (;j<RIR_FFT_SIZE/2;j++) x[RIR_FFT_SIZE/2+j].r = 0;
+    rnn_fft_c(rirs->fft, x, X);
+    for (j=0;j<RIR_FFT_SIZE;j++) {
+      kiss_fft_cpx tmp;
+      C_MUL(tmp, X[j], Y[j]);
+      X[j] = tmp;
+    }
+    rnn_ifft_c(rirs->fft, X, y);
+    for (j=0;j<IMIN(SEQUENCE_SAMPLES-i, RIR_FFT_SIZE/2);j++) audio[i+j] = x[RIR_FFT_SIZE/2+j].r;
+    i += RIR_FFT_SIZE/2;
+  }
+}
 
 static unsigned rand_lcg(unsigned *seed) {
   *seed = 1664525**seed + 1013904223;
@@ -84,12 +171,23 @@ int main(int argc, char **argv) {
   unsigned seed;
   DenoiseState *st;
   DenoiseState *noisy;
+  char *argv0;
+  char *rir_filename = NULL;
+  struct rir_list rirs;
   seed = getpid();
   srand(seed);
   st = rnnoise_create(NULL);
   noisy = rnnoise_create(NULL);
+  argv0 = argv[0];
+  while (argc>5) {
+    if (strcmp(argv[1], "-rir_list")==0) {
+      rir_filename = argv[2];
+      argv+=2;
+      argc-=2;
+    }
+  }
   if (argc!=5) {
-    fprintf(stderr, "usage: %s <speech> <noise> <output> <count>\n", argv[0]);
+    fprintf(stderr, "usage: %s [-rir_list list] <speech> <noise> <output> <count>\n", argv0);
     return 1;
   }
   f1 = fopen(argv[1], "rb");
@@ -104,7 +202,9 @@ int main(int argc, char **argv) {
   fseek(f2, 0, SEEK_SET);
 
   maxCount = atoi(argv[4]);
+  load_rir_list(rir_filename, &rirs);
   for (count=0;count<maxCount;count++) {
+    int rir_id;
     long speech_pos, noise_pos;
     int start_pos;
     float E[SEQUENCE_LENGTH] = {0};
@@ -186,13 +286,17 @@ int main(int argc, char **argv) {
     for (j=0;j<SEQUENCE_SAMPLES;j++) {
       x[j] *= speech_gain;
       n[j] *= noise_gain;
+      xn[j] = x[j] + n[j];
     }
+    rir_id = rand()%rirs.nb_rirs;
+    rir_filter_sequence(&rirs, x, rir_id, 1);
+    rir_filter_sequence(&rirs, xn, rir_id, 0);
 
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
       int vad;
-      for(j=0;j<FRAME_SIZE;j++) {
+      /*for(j=0;j<FRAME_SIZE;j++) {
         xn[frame*FRAME_SIZE+j] = x[frame*FRAME_SIZE+j] + n[frame*FRAME_SIZE+j];
-      }
+      }*/
       rnn_frame_analysis(st, Y, Ey, &x[frame*FRAME_SIZE]);
       silence = rnn_compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, &xn[frame*FRAME_SIZE]);
       /*rnn_pitch_filter(X, P, Ex, Ep, Exp, g);*/

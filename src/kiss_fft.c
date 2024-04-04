@@ -314,7 +314,7 @@ static void kf_bfly5(
 static
 void compute_bitrev_table(
          int Fout,
-         opus_int16 *f,
+         opus_int32 *f,
          const size_t fstride,
          int in_stride,
          opus_int16 * factors,
@@ -445,7 +445,7 @@ kiss_fft_state *rnn_fft_alloc_twiddles(int nfft,void * mem,size_t * lenmem,
         *lenmem = memneeded;
     }
     if (st) {
-        opus_int16 *bitrev;
+        opus_int32 *bitrev;
         kiss_twiddle_cpx *twiddles;
 
         st->nfft=nfft;
@@ -477,7 +477,7 @@ kiss_fft_state *rnn_fft_alloc_twiddles(int nfft,void * mem,size_t * lenmem,
         }
 
         /* bitrev */
-        st->bitrev = bitrev = (opus_int16*)KISS_FFT_MALLOC(sizeof(opus_int16)*nfft);
+        st->bitrev = bitrev = (opus_int32*)KISS_FFT_MALLOC(sizeof(opus_int32)*nfft);
         if (st->bitrev==NULL)
             goto fail;
         compute_bitrev_table(0, bitrev, 1,1, st->factors,st);
@@ -506,7 +506,7 @@ void rnn_fft_free(const kiss_fft_state *cfg, int arch)
    if (cfg)
    {
       rnn_fft_free_arch((kiss_fft_state *)cfg, arch);
-      opus_free((opus_int16*)cfg->bitrev);
+      opus_free((opus_int32*)cfg->bitrev);
       if (cfg->shift < 0)
          opus_free((kiss_twiddle_cpx*)cfg->twiddles);
       opus_free((kiss_fft_state*)cfg);
