@@ -34,7 +34,7 @@
 
 #define SPARSE_BLOCK_SIZE 32
 
-int parse_record(const void **data, int *len, WeightArray *array) {
+static int parse_record(const void **data, int *len, WeightArray *array) {
   WeightHead *h = (WeightHead *)*data;
   if (*len < WEIGHT_BLOCK_SIZE) return -1;
   if (h->block_size < h->size) return -1;

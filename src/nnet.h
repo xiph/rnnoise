@@ -85,25 +85,30 @@ typedef struct {
 } Conv2dLayer;
 
 
+/* Changes some symbol names to add the rnn_ prefix so we don't get conflicts with Opus. */
+#define linear_init rnn_linear_init
+#define conv2d_init rnn_conv2d_init
+#define compute_generic_dense rnn_compute_generic_dense
+#define compute_generic_gru rnn_compute_generic_gru
+#define compute_generic_conv1d rnn_compute_generic_conv1d
+#define compute_glu rnn_compute_glu
+
+#define parse_weights rnn_parse_weights
+
+#define compute_linear_c rnn_compute_linear_c
+#define compute_activation_c rnn_compute_activation_c
+#define compute_conv2d_c rnn_compute_conv2d_c
+
+
 void compute_generic_dense(const LinearLayer *layer, float *output, const float *input, int activation, int arch);
 void compute_generic_gru(const LinearLayer *input_weights, const LinearLayer *recurrent_weights, float *state, const float *in, int arch);
 void compute_generic_conv1d(const LinearLayer *layer, float *output, float *mem, const float *input, int input_size, int activation, int arch);
-void compute_generic_conv1d_dilation(const LinearLayer *layer, float *output, float *mem, const float *input, int input_size, int dilation, int activation, int arch);
 void compute_glu(const LinearLayer *layer, float *output, const float *input, int arch);
-void compute_gated_activation(const LinearLayer *layer, float *output, const float *input, int activation, int arch);
 
 
 int parse_weights(WeightArray **list, const void *data, int len);
 
 
-extern const WeightArray lpcnet_arrays[];
-extern const WeightArray plcmodel_arrays[];
-extern const WeightArray rdovaeenc_arrays[];
-extern const WeightArray rdovaedec_arrays[];
-extern const WeightArray fwgan_arrays[];
-extern const WeightArray fargan_arrays[];
-extern const WeightArray pitchdnn_arrays[];
-extern const WeightArray lossgen_arrays[];
 
 int linear_init(LinearLayer *layer, const WeightArray *arrays,
   const char *bias,

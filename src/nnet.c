@@ -121,22 +121,3 @@ void compute_generic_conv1d(const LinearLayer *layer, float *output, float *mem,
    compute_activation(output, output, layer->nb_outputs, activation, arch);
    if (layer->nb_inputs!=input_size) RNN_COPY(mem, &tmp[input_size], layer->nb_inputs-input_size);
 }
-
-void compute_generic_conv1d_dilation(const LinearLayer *layer, float *output, float *mem, const float *input, int input_size, int dilation, int activation, int arch)
-{
-   float tmp[MAX_CONV_INPUTS_ALL];
-   int ksize = layer->nb_inputs/input_size;
-   int i;
-   celt_assert(input != output);
-   celt_assert(layer->nb_inputs <= MAX_CONV_INPUTS_ALL);
-   if (dilation==1) RNN_COPY(tmp, mem, layer->nb_inputs-input_size);
-   else for (i=0;i<ksize-1;i++) RNN_COPY(&tmp[i*input_size], &mem[i*input_size*dilation], input_size);
-   RNN_COPY(&tmp[layer->nb_inputs-input_size], input, input_size);
-   compute_linear(layer, output, tmp, arch);
-   compute_activation(output, output, layer->nb_outputs, activation, arch);
-   if (dilation==1) RNN_COPY(mem, &tmp[input_size], layer->nb_inputs-input_size);
-   else {
-     RNN_COPY(mem, &mem[input_size], input_size*dilation*(ksize-1)-input_size);
-     RNN_COPY(&mem[input_size*dilation*(ksize-1)-input_size], input, input_size);
-   }
-}
