@@ -33,7 +33,8 @@ librnnoise_la_SOURCES = \
 	src/nnet.c \
 	src/nnet_default.c \
 	src/parse_lpcnet_weights.c \
-	src/rnnoise_data.c
+	src/rnnoise_data.c \
+	src/rnnoise_tables.c
 
 librnnoise_la_LIBADD = $(DEPS_LIBS) $(lrintf_lib) $(LIBM)
 librnnoise_la_LDFLAGS = -no-undefined \
@@ -47,7 +48,7 @@ endif
 examples_rnnoise_demo_SOURCES = examples/rnnoise_demo.c
 examples_rnnoise_demo_LDADD = librnnoise.la
 
-dump_features_SOURCES = src/dump_features.c src/denoise.c src/rnn.c src/pitch.c src/celt_lpc.c src/kiss_fft.c src/rnnoise_data.c src/nnet_default.c src/parse_lpcnet_weights.c src/nnet.c
+dump_features_SOURCES = src/dump_features.c src/denoise.c src/rnn.c src/pitch.c src/celt_lpc.c src/kiss_fft.c src/rnnoise_data.c src/nnet_default.c src/parse_lpcnet_weights.c src/nnet.c src/rnnoise_tables.c
 dump_features_LDADD = $(LIBM)
 dump_features_CFLAGS = $(AM_CFLAGS) -DTRAINING
 
