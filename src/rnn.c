@@ -51,6 +51,7 @@ void compute_rnn(const RNNoise *model, RNNState *rnn, float *gains, float *vad, 
   compute_generic_gru(&model->gru2_input, &model->gru2_recurrent, rnn->gru2_state, rnn->gru1_state, 0);
   compute_generic_gru(&model->gru3_input, &model->gru3_recurrent, rnn->gru3_state, rnn->gru2_state, 0);
   compute_generic_dense(&model->dense_out, gains, rnn->gru3_state, ACTIVATION_SIGMOID, 0);
+  compute_generic_dense(&model->vad_dense, vad, rnn->gru3_state, ACTIVATION_SIGMOID, 0);
   /*for (int i=0;i<22;i++) printf("%f ", gains[i]);printf("\n");*/
-  *vad = .5;
+  /*printf("%f\n", *vad);*/
 }

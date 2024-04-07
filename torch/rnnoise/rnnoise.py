@@ -16,6 +16,7 @@ class RNNoise(nn.Module):
         self.gru2 = nn.GRU(self.gru_size, self.gru_size, batch_first=True)
         self.gru3 = nn.GRU(self.gru_size, self.gru_size, batch_first=True)
         self.dense_out = nn.Linear(self.gru_size, self.output_dim)
+        self.vad_dense = nn.Linear(self.gru_size, 1)
         nb_params = sum(p.numel() for p in self.parameters())
         print(f"model: {nb_params} weights")
 
@@ -39,4 +40,6 @@ class RNNoise(nn.Module):
         gru1_out, gru1_state = self.gru1(tmp, gru1_state)
         gru2_out, gru2_state = self.gru2(gru1_out, gru2_state)
         gru3_out, gru3_state = self.gru3(gru2_out, gru3_state)
-        return torch.sigmoid(self.dense_out(gru3_out)), [gru1_state, gru2_state, gru3_state]
+        gain = torch.sigmoid(self.dense_out(gru3_out))
+        vad = torch.sigmoid(self.vad_dense(gru3_out))
+        return gain, vad, [gru1_state, gru2_state, gru3_state]

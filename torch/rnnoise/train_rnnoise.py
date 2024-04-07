@@ -52,7 +52,7 @@ class RNNoiseDataset(torch.utils.data.Dataset):
         return self.nb_sequences
 
     def __getitem__(self, index):
-        return self.data[index, :, :65].copy(), self.data[index, :, 65:-1].copy()
+        return self.data[index, :, :65].copy(), self.data[index, :, 65:-1].copy(), self.data[index, :, -1:].copy()
 
 def mask(g):
     return torch.clamp(g+1, max=1)
@@ -101,30 +101,41 @@ if __name__ == '__main__':
     states = None
     for epoch in range(1, epochs + 1):
 
+        running_gain_loss = 0
+        running_vad_loss = 0
         running_loss = 0
 
         print(f"training epoch {epoch}...")
         with tqdm.tqdm(dataloader, unit='batch') as tepoch:
-            for i, (features, gain) in enumerate(tepoch):
+            for i, (features, gain, vad) in enumerate(tepoch):
                 optimizer.zero_grad()
                 features = features.to(device)
                 gain = gain.to(device)
+                vad = vad.to(device)
 
-                pred_gain, states = model(features, states=states)
+                pred_gain, pred_vad, states = model(features, states=states)
                 states = [state.detach() for state in states]
                 gain = gain[:,4:,:]
+                vad = vad[:,4:,:]
                 target_gain = torch.clamp(gain, min=0)
                 target_gain = target_gain*(torch.tanh(5*target_gain)**2)
 
-                loss = torch.mean(mask(gain)*(pred_gain**gamma - target_gain**gamma)**2)
+                gain_loss = torch.mean(mask(gain)*(pred_gain**gamma - target_gain**gamma)**2)
+                #vad_loss = torch.mean(torch.abs(2*vad-1)*(vad-pred_vad)**2)
+                vad_loss = torch.mean(torch.abs(2*vad-1)*(-vad*torch.log(.01+pred_vad) - (1-vad)*torch.log(1.01-pred_vad)))
+                loss = gain_loss + .0005*vad_loss
 
                 loss.backward()
                 optimizer.step()
 
                 scheduler.step()
 
+                running_gain_loss += gain_loss.detach().cpu().item()
+                running_vad_loss += vad_loss.detach().cpu().item()
                 running_loss += loss.detach().cpu().item()
                 tepoch.set_postfix(loss=f"{running_loss/(i+1):8.5f}",
+                                   gain_loss=f"{running_gain_loss/(i+1):8.5f}",
+                                   vad_loss=f"{running_vad_loss/(i+1):8.5f}",
                                    )
 
         # save checkpoint

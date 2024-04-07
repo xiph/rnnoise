@@ -304,11 +304,18 @@ int main(int argc, char **argv) {
       rir_filter_sequence(&rirs, xn, rir_id, 0);
     }
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
-      int vad;
+      float vad;
+      float E0, Eprev, Enext;
       rnn_frame_analysis(st, Y, Ey, &x[frame*FRAME_SIZE]);
       silence = rnn_compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, &xn[frame*FRAME_SIZE]);
       /*rnn_pitch_filter(X, P, Ex, Ep, Exp, g);*/
-      vad = (E[frame] > 1e9f);
+      E0 = E[frame];
+      Eprev = E[IMAX(0, frame-1)];
+      Enext = E[IMIN(SEQUENCE_LENGTH-1, frame+1)];
+      if (E0 > 1e9f) vad = 1;
+      else if (E0 > 1e8f && Eprev > 1e8f && Enext > 1e8f) vad = 1;
+      else if (E0 < 1e7f && Eprev < 1e7f && Enext < 1e7f) vad = 0;
+      else vad = .5;
       for (i=0;i<NB_BANDS;i++) {
         g[i] = sqrt((Ey[i]+1e-3)/(Ex[i]+1e-3));
         if (g[i] > 1) g[i] = 1;
