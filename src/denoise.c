@@ -69,7 +69,9 @@ const int eband20ms[NB_BANDS+2] = {
 
 struct DenoiseState {
   RNNoise model;
+#if !TRAINING
   int arch;
+#endif
   float analysis_mem[FRAME_SIZE];
   int memid;
   float synthesis_mem[FRAME_SIZE];
@@ -231,7 +233,9 @@ extern const WeightArray rnnoise_arrays[];
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
   init_rnnoise(&st->model, rnnoise_arrays);
+#if !TRAINING
   st->arch = rnn_select_arch();
+#endif
   (void)model;
   return 0;
 }
@@ -395,7 +399,9 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   silence = rnn_compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
 
   if (!silence) {
+#if !TRAINING
     compute_rnn(&st->model, &st->rnn, g, &vad_prob, features, st->arch);
+#endif
     rnn_pitch_filter(X, P, Ex, Ep, Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
