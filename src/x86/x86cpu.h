@@ -28,35 +28,11 @@
 #if !defined(X86CPU_H)
 # define X86CPU_H
 
-# if defined(OPUS_X86_MAY_HAVE_SSE)
-#  define MAY_HAVE_SSE(name) name ## _sse
-# else
-#  define MAY_HAVE_SSE(name) name ## _c
-# endif
-
-# if defined(OPUS_X86_MAY_HAVE_SSE2)
-#  define MAY_HAVE_SSE2(name) name ## _sse2
-# else
-#  define MAY_HAVE_SSE2(name) name ## _c
-# endif
-
-# if defined(OPUS_X86_MAY_HAVE_SSE4_1)
 #  define MAY_HAVE_SSE4_1(name) name ## _sse4_1
-# else
-#  define MAY_HAVE_SSE4_1(name) name ## _c
-# endif
 
-# if defined(OPUS_X86_MAY_HAVE_AVX2)
 #  define MAY_HAVE_AVX2(name) name ## _avx2
-# else
-#  define MAY_HAVE_AVX2(name) name ## _c
-# endif
 
-# if defined(OPUS_HAVE_RTCD) && \
-  ((defined(OPUS_X86_MAY_HAVE_SSE) && !defined(OPUS_X86_PRESUME_SSE)) || \
-  (defined(OPUS_X86_MAY_HAVE_SSE2) && !defined(OPUS_X86_PRESUME_SSE2)) || \
-  (defined(OPUS_X86_MAY_HAVE_SSE4_1) && !defined(OPUS_X86_PRESUME_SSE4_1)) || \
-  (defined(OPUS_X86_MAY_HAVE_AVX2) && !defined(OPUS_X86_PRESUME_AVX2)))
+# ifdef RNN_ENABLE_X86_RTCD
 int opus_select_arch(void);
 # endif
 

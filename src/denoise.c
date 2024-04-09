@@ -393,7 +393,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   silence = rnn_compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
 
   if (!silence) {
-    compute_rnn(&st->model, &st->rnn, g, &vad_prob, features);
+    compute_rnn(&st->model, &st->rnn, g, &vad_prob, features, 4);
     rnn_pitch_filter(X, P, Ex, Ep, Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;

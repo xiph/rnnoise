@@ -134,12 +134,7 @@ void compute_linear_c(const LinearLayer *linear, float *out, const float *in);
 void compute_activation_c(float *output, const float *input, int N, int activation);
 void compute_conv2d_c(const Conv2dLayer *conv, float *out, float *mem, const float *in, int height, int hstride, int activation);
 
-
-#if defined(OPUS_ARM_MAY_HAVE_DOTPROD) || defined(OPUS_ARM_MAY_HAVE_NEON_INTR)
-#include "arm/dnn_arm.h"
-#endif
-
-#if defined(OPUS_X86_MAY_HAVE_SSE2)
+#ifdef RNN_ENABLE_X86_RTCD
 #include "x86/dnn_x86.h"
 #endif
 

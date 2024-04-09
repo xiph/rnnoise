@@ -31,34 +31,15 @@
 #include "opus_types.h"
 #include "common.h"
 
-#if defined(OPUS_HAVE_RTCD) && \
-  (defined(OPUS_ARM_ASM) || defined(OPUS_ARM_MAY_HAVE_NEON_INTR))
-#include "arm/armcpu.h"
-
-/* We currently support 5 ARM variants:
- * arch[0] -> ARMv4
- * arch[1] -> ARMv5E
- * arch[2] -> ARMv6
- * arch[3] -> NEON
- * arch[4] -> NEON+DOTPROD
- */
-#define OPUS_ARCHMASK 7
-
-#elif defined(OPUS_HAVE_RTCD) && \
-  ((defined(OPUS_X86_MAY_HAVE_SSE) && !defined(OPUS_X86_PRESUME_SSE)) || \
-  (defined(OPUS_X86_MAY_HAVE_SSE2) && !defined(OPUS_X86_PRESUME_SSE2)) || \
-  (defined(OPUS_X86_MAY_HAVE_SSE4_1) && !defined(OPUS_X86_PRESUME_SSE4_1)) || \
-  (defined(OPUS_X86_MAY_HAVE_AVX2) && !defined(OPUS_X86_PRESUME_AVX2)))
+#ifdef RNN_ENABLE_X86_RTCD
 
 #include "x86/x86cpu.h"
 /* We currently support 5 x86 variants:
- * arch[0] -> non-sse
- * arch[1] -> sse
- * arch[2] -> sse2
- * arch[3] -> sse4.1
- * arch[4] -> avx
+ * arch[0] -> sse2
+ * arch[1] -> sse4.1
+ * arch[2] -> avx2
  */
-#define OPUS_ARCHMASK 7
+#define OPUS_ARCHMASK 3
 int opus_select_arch(void);
 
 #else

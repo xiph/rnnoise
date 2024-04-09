@@ -39,13 +39,14 @@ RNNOISE_SOURCES = \
 	src/rnnoise_data.c \
 	src/rnnoise_tables.c
 
-X86_RTCD = src/x86/nnet_avx2.c \
-           src/x86/nnet_sse4_1.c \
-           src/x86/x86_dnn_map.c \
+RNNOISE_SOURCES_SSE4_1 = src/x86/nnet_sse4_1.c
+RNNOISE_SOURCES_AVX2 = src/x86/nnet_avx2.c
+
+X86_RTCD = src/x86/x86_dnn_map.c \
 	   src/x86/x86cpu.c
 
-if OP_ENABLE_X86_RTCD
-RNNOISE_SOURCES += $(X86_RTCD)
+if RNN_ENABLE_X86_RTCD
+RNNOISE_SOURCES += $(X86_RTCD) $(RNNOISE_SOURCES_SSE4_1) $(RNNOISE_SOURCES_AVX2)
 endif
 
 librnnoise_la_SOURCES = $(RNNOISE_SOURCES)
@@ -155,3 +156,11 @@ dist-hook:
 
 
 .PHONY: rnnoise install-rnnoise docs install-docs
+
+if RNN_ENABLE_X86_RTCD
+SSE4_1_OBJ = $(RNNOISE_SOURCES_SSE4_1:.c=.lo)
+$(SSE4_1_OBJ): CFLAGS += $(OPUS_X86_SSE4_1_CFLAGS)
+
+AVX2_OBJ = $(RNNOISE_SOURCES_AVX2:.c=.lo)
+$(AVX2_OBJ): CFLAGS += $(OPUS_X86_AVX2_CFLAGS)
+endif
