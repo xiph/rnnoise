@@ -16,6 +16,9 @@ To compile, just type:
 Optionally:
 % make install
 
+It is recommended to either set -march= in the CFLAGS to an architecture
+with AVX2 support or to add --enable-x86-rtcd to the configure script
+so that AVX2 (or SSE4.1) can at least be used as an option.
 Note that the autogen.sh script will automatically download the model files
 from the Xiph.Org servers, since those are too large to put in Git.
 
