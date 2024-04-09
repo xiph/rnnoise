@@ -78,6 +78,11 @@ AC_ARG_ENABLE([examples],
   enable_examples=yes)
 AM_CONDITIONAL([OP_ENABLE_EXAMPLES], [test "$enable_examples" = "yes"])
 
+AC_ARG_ENABLE([x86-rtcd],
+  AS_HELP_STRING([--enable-x86-rtcd], [Do not build example applications]),,
+  enable_x86_rtcd=no)
+AM_CONDITIONAL([OP_ENABLE_X86_RTCD], [test "$enable_x86_rtcd" = "yes"])
+
 AS_CASE(["$ac_cv_search_lrintf"],
   ["no"],[],
   ["none required"],[],

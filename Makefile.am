@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-AM_CFLAGS = -I$(top_srcdir)/include $(DEPS_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src $(DEPS_CFLAGS)
 
 dist_doc_DATA = COPYING AUTHORS README
 
@@ -9,6 +9,7 @@ include_HEADERS = include/rnnoise.h
 lib_LTLIBRARIES = librnnoise.la
 noinst_HEADERS = src/arch.h  \
 		 src/celt_lpc.h  \
+		 src/cpu_support.h \
 		 src/common.h  \
 		 src/denoise.h \
 		 src/_kiss_fft_guts.h  \
@@ -22,9 +23,11 @@ noinst_HEADERS = src/arch.h  \
 		 src/vec_neon.h \
 		 src/vec.h \
 		 src/vec_avx.h \
-		 src/x86/x86_arch_macros.h
+		 src/x86/x86_arch_macros.h \
+		 src/x86/x86cpu.h \
+		 src/x86/dnn_x86.h
 
-librnnoise_la_SOURCES = \
+RNNOISE_SOURCES = \
 	src/denoise.c \
 	src/rnn.c \
 	src/pitch.c \
@@ -36,6 +39,16 @@ librnnoise_la_SOURCES = \
 	src/rnnoise_data.c \
 	src/rnnoise_tables.c
 
+X86_RTCD = src/x86/nnet_avx2.c \
+           src/x86/nnet_sse4_1.c \
+           src/x86/x86_dnn_map.c \
+	   src/x86/x86cpu.c
+
+if OP_ENABLE_X86_RTCD
+RNNOISE_SOURCES += $(X86_RTCD)
+endif
+
+librnnoise_la_SOURCES = $(RNNOISE_SOURCES)
 librnnoise_la_LIBADD = $(DEPS_LIBS) $(lrintf_lib) $(LIBM)
 librnnoise_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
