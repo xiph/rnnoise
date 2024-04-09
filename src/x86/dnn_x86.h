@@ -43,17 +43,17 @@ void compute_conv2d_avx2(const Conv2dLayer *conv, float *out, float *mem, const 
 
 #ifdef RNN_ENABLE_X86_RTCD
 
-extern void (*const DNN_COMPUTE_LINEAR_IMPL[OPUS_ARCHMASK + 1])(
+extern void (*const RNN_COMPUTE_LINEAR_IMPL[OPUS_ARCHMASK + 1])(
                     const LinearLayer *linear,
                     float *out,
                     const float *in
                     );
 #define OVERRIDE_COMPUTE_LINEAR
 #define compute_linear(linear, out, in, arch) \
-    ((*DNN_COMPUTE_LINEAR_IMPL[(arch) & OPUS_ARCHMASK])(linear, out, in))
+    ((*RNN_COMPUTE_LINEAR_IMPL[(arch) & OPUS_ARCHMASK])(linear, out, in))
 
 
-extern void (*const DNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
+extern void (*const RNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
                     float *output,
                     const float *input,
                     int N,
@@ -61,10 +61,10 @@ extern void (*const DNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
                     );
 #define OVERRIDE_COMPUTE_ACTIVATION
 #define compute_activation(output, input, N, activation, arch) \
-    ((*DNN_COMPUTE_ACTIVATION_IMPL[(arch) & OPUS_ARCHMASK])(output, input, N, activation))
+    ((*RNN_COMPUTE_ACTIVATION_IMPL[(arch) & OPUS_ARCHMASK])(output, input, N, activation))
 
 
-extern void (*const DNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
+extern void (*const RNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
                     const Conv2dLayer *conv,
                     float *out,
                     float *mem,
@@ -75,7 +75,7 @@ extern void (*const DNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
                     );
 #define OVERRIDE_COMPUTE_CONV2D
 #define compute_conv2d(conv, out, mem, in, height, hstride, activation, arch) \
-    ((*DNN_COMPUTE_CONV2D_IMPL[(arch) & OPUS_ARCHMASK])(conv, out, mem, in, height, hstride, activation))
+    ((*RNN_COMPUTE_CONV2D_IMPL[(arch) & OPUS_ARCHMASK])(conv, out, mem, in, height, hstride, activation))
 
 
 #endif
