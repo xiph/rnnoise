@@ -40,7 +40,7 @@
 #include "pitch.h"
 #include "arch.h"
 #include "rnn.h"
-
+#include "cpu_support.h"
 
 #define SQUARE(x) ((x)*(x))
 
