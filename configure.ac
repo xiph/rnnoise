@@ -78,6 +78,20 @@ AC_ARG_ENABLE([examples],
   enable_examples=yes)
 AM_CONDITIONAL([OP_ENABLE_EXAMPLES], [test "$enable_examples" = "yes"])
 
+OPUS_X86_SSE4_1_CFLAGS='-msse4.1'
+OPUS_X86_AVX2_CFLAGS='-mavx -mfma -mavx2'
+AC_SUBST([OPUS_X86_SSE4_1_CFLAGS])
+AC_SUBST([OPUS_X86_AVX2_CFLAGS])
+AC_ARG_ENABLE([x86-rtcd],
+  AS_HELP_STRING([--enable-x86-rtcd], [x86 rtcd]),,
+  enable_x86_rtcd=no)
+AM_CONDITIONAL([RNN_ENABLE_X86_RTCD], [test "$enable_x86_rtcd" = "yes"])
+
+AS_IF([test "$enable_x86_rtcd" = "yes"], [
+  AC_DEFINE([RNN_ENABLE_X86_RTCD], [1], [Enable x86 rtcd])
+  AC_DEFINE([CPU_INFO_BY_ASM], [1], [RTCD from ASM only for now])
+])
+
 AS_CASE(["$ac_cv_search_lrintf"],
   ["no"],[],
   ["none required"],[],
