@@ -156,7 +156,7 @@ void compute_conv2d_c(const Conv2dLayer *conv, float *out, float *mem, const flo
 #define compute_conv2d(conv, out, mem, in, height, hstride, activation, arch) ((void)(arch),compute_conv2d_c(conv, out, mem, in, height, hstride, activation))
 #endif
 
-#if defined(__x86_64__) && !defined(OPUS_X86_MAY_HAVE_SSE4_1) && !defined(OPUS_X86_MAY_HAVE_AVX2) && !defined(__AVX2__)
+#if defined(__x86_64__) && !defined(RNN_ENABLE_X86_RTCD) && !defined(__AVX2__)
 #if defined(_MSC_VER)
 #pragma message ("Only SSE and SSE2 are available. On newer machines, enable SSSE3/AVX/AVX2 to get better performance")
 #else
