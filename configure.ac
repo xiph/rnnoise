@@ -89,6 +89,7 @@ AM_CONDITIONAL([RNN_ENABLE_X86_RTCD], [test "$enable_x86_rtcd" = "yes"])
 
 AS_IF([test "$enable_x86_rtcd" = "yes"], [
   AC_DEFINE([RNN_ENABLE_X86_RTCD], [1], [Enable x86 rtcd])
+  AC_DEFINE([CPU_INFO_BY_ASM], [1], [RTCD from ASM only for now])
 ])
 
 AS_CASE(["$ac_cv_search_lrintf"],

@@ -33,11 +33,7 @@
 #include "pitch.h"
 #include "x86cpu.h"
 
-#if defined(OPUS_HAVE_RTCD) && \
-  ((defined(OPUS_X86_MAY_HAVE_SSE) && !defined(OPUS_X86_PRESUME_SSE)) || \
-  (defined(OPUS_X86_MAY_HAVE_SSE2) && !defined(OPUS_X86_PRESUME_SSE2)) || \
-  (defined(OPUS_X86_MAY_HAVE_SSE4_1) && !defined(OPUS_X86_PRESUME_SSE4_1)) || \
-  (defined(OPUS_X86_MAY_HAVE_AVX2) && !defined(OPUS_X86_PRESUME_AVX2)))
+#ifdef RNN_ENABLE_X86_RTCD
 
 #if defined(_MSC_VER)
 
@@ -106,7 +102,7 @@ typedef struct CPU_Feature{
     int HW_AVX2;
 } CPU_Feature;
 
-static void opus_cpu_feature_check(CPU_Feature *cpu_feature)
+static void rnn_cpu_feature_check(CPU_Feature *cpu_feature)
 {
     unsigned int info[4];
     unsigned int nIds = 0;
@@ -135,26 +131,14 @@ static void opus_cpu_feature_check(CPU_Feature *cpu_feature)
     }
 }
 
-static int opus_select_arch_impl(void)
+static int rnn_select_arch_impl(void)
 {
     CPU_Feature cpu_feature;
     int arch;
 
-    opus_cpu_feature_check(&cpu_feature);
+    rnn_cpu_feature_check(&cpu_feature);
 
     arch = 0;
-    if (!cpu_feature.HW_SSE)
-    {
-       return arch;
-    }
-    arch++;
-
-    if (!cpu_feature.HW_SSE2)
-    {
-       return arch;
-    }
-    arch++;
-
     if (!cpu_feature.HW_SSE41)
     {
         return arch;
@@ -170,8 +154,8 @@ static int opus_select_arch_impl(void)
     return arch;
 }
 
-int opus_select_arch(void) {
-    int arch = opus_select_arch_impl();
+int rnn_select_arch(void) {
+    int arch = rnn_select_arch_impl();
 #ifdef FUZZING
     /* Randomly downgrade the architecture. */
     arch = rand()%(arch+1);
