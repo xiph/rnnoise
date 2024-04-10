@@ -78,6 +78,14 @@ AC_ARG_ENABLE([examples],
   enable_examples=yes)
 AM_CONDITIONAL([OP_ENABLE_EXAMPLES], [test "$enable_examples" = "yes"])
 
+AC_ARG_ENABLE([dnn-debug-float],
+              AS_HELP_STRING([--enable-dnn-debug-float], [Use floating-point DNN computation everywhere]),,
+  enable_dnn_debug_float=no)
+
+AS_IF([test "$enable_dnn_debug_float" = "no"], [
+       AC_DEFINE([DISABLE_DEBUG_FLOAT], [1], [Disable DNN debug float])
+])
+
 OPUS_X86_SSE4_1_CFLAGS='-msse4.1'
 OPUS_X86_AVX2_CFLAGS='-mavx -mfma -mavx2'
 AC_SUBST([OPUS_X86_SSE4_1_CFLAGS])
