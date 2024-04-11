@@ -26,28 +26,41 @@ While it is meant to be used as a library, a simple command-line tool is
 provided as an example. It operates on RAW 16-bit (machine endian) mono
 PCM files sampled at 48 kHz. It can be used as:
 
-./examples/rnnoise_demo <noisy speech> <output denoised>
+% ./examples/rnnoise_demo <noisy speech> <output denoised>
 
 The output is also a 16-bit raw PCM file.
 NOTE AGAIN, THE INPUT and OUTPUT ARE IN RAW FORMAT, NOT WAV.
 
 The latest version of the source is available from
-https://gitlab.xiph.org/xiph/rnnoise .  The github repository
+https://gitlab.xiph.org/xiph/rnnoise .  The GitHub repository
 is a convenience copy.
 
 == TRAINING ==
 
 To train an RNNoise model, you need both clean speech data, and noise data.
 Both need to be sampled at 48 kHz, in 16-bit PCM format (machine endian).
+Clean speech data can be obtained from https://media.xiph.org/rnnoise/data/tts_speech_48k.sw
+The first step is to take the speech and noise, and mix them in a variety of ways
+to simulate real life conditions (including pauses, filtering and more).
 Assuming the files are called speech.pcm and noise.pcm, start by generating
-the training data with
+the training feature data with:
 
 % ./dump_features speech.pcm noise.pcm features.f32 <count>
 where <count> is the number of sequences to process. The number of sequences
-should be at least 10000, but the more the better.
+should be at least 10000, but the more the better (200000 or more is recommended).
+
+Optionally, training can also simulate reverberation, in which case room impulse
+responses (RIR) are also needed. Limited RIR data is available at:
+https://media.xiph.org/rnnoise/data/measured_rirs-v2.tar.gz
+The format for those is raw 32-bit floating-point (files are little endian).
+Assuming a list of all the RIR files is contained in a rir_list.txt file,
+the training feature data can be generated with:
+
+% ./dump_features -rir_list rir_list.txt speech.pcm noise.pcm features.f32 <count>
 
 To make the feature generation faster, you can use the script provided in
-script/dump_features_parallel.sh
+script/dump_features_parallel.sh (you will need to modify the script if you
+want to add RIR augmentation).
 
 To use it:
 % script/dump_features_parallel.sh ./dump_features speech.pcm noise.pcm features.f32 <count> <nb_processes>
