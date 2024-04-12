@@ -1,6 +1,31 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.split(__file__)[0], '..'))
+from sparsification import GRUSparsifier
+
+sparsify_start     = 2500
+sparsify_stop      = 8000
+sparsify_interval  = 50
+sparsify_exponent  = 3
+
+sparse_params1 = {
+                'W_hr' : (0.3, [8, 4], True),
+                'W_hz' : (0.2, [8, 4], True),
+                'W_hn' : (0.5, [8, 4], True),
+                'W_ir' : (0.3, [8, 4], False),
+                'W_iz' : (0.2, [8, 4], False),
+                'W_in' : (0.5, [8, 4], False)
+                }
+
+def init_weights(module):
+    if isinstance(module, nn.GRU):
+        for p in module.named_parameters():
+            if p[0].startswith('weight_hh_'):
+                nn.init.orthogonal_(p[1])
 
 class RNNoise(nn.Module):
     def __init__(self, input_dim=65, output_dim=32, cond_size=128, gru_size=256):
@@ -19,6 +44,16 @@ class RNNoise(nn.Module):
         self.vad_dense = nn.Linear(self.gru_size, 1)
         nb_params = sum(p.numel() for p in self.parameters())
         print(f"model: {nb_params} weights")
+        self.apply(init_weights)
+        self.sparsifier = []
+        self.sparsifier.append(GRUSparsifier([(self.gru1, sparse_params1)], sparsify_start, sparsify_stop, sparsify_interval, sparsify_exponent))
+        self.sparsifier.append(GRUSparsifier([(self.gru2, sparse_params1)], sparsify_start, sparsify_stop, sparsify_interval, sparsify_exponent))
+        self.sparsifier.append(GRUSparsifier([(self.gru3, sparse_params1)], sparsify_start, sparsify_stop, sparsify_interval, sparsify_exponent))
+
+
+    def sparsify(self):
+        for sparsifier in self.sparsifier:
+            sparsifier.step()
 
     def forward(self, features, states=None):
         #print(states)

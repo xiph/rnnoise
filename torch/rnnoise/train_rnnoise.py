@@ -18,14 +18,14 @@ parser.add_argument('--cuda-visible-devices', type=str, help="comma separates li
 
 model_group = parser.add_argument_group(title="model parameters")
 model_group.add_argument('--cond-size', type=int, help="first conditioning size, default: 128", default=128)
-model_group.add_argument('--gru-size', type=int, help="first conditioning size, default: 256", default=256)
+model_group.add_argument('--gru-size', type=int, help="first conditioning size, default: 384", default=384)
 
 training_group = parser.add_argument_group(title="training parameters")
-training_group.add_argument('--batch-size', type=int, help="batch size, default: 192", default=192)
+training_group.add_argument('--batch-size', type=int, help="batch size, default: 128", default=128)
 training_group.add_argument('--lr', type=float, help='learning rate, default: 1e-3', default=1e-3)
 training_group.add_argument('--epochs', type=int, help='number of training epochs, default: 200', default=200)
 training_group.add_argument('--sequence-length', type=int, help='sequence length, default: 2000', default=2000)
-training_group.add_argument('--lr-decay', type=float, help='learning rate decay factor, default: 1e-3', default=1e-3)
+training_group.add_argument('--lr-decay', type=float, help='learning rate decay factor, default: 5e-5', default=5e-5)
 training_group.add_argument('--initial-checkpoint', type=str, help='initial checkpoint to start training from, default: None', default=None)
 training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.1667)', default=0.1667)
 
@@ -127,6 +127,7 @@ if __name__ == '__main__':
 
                 loss.backward()
                 optimizer.step()
+                model.sparsify()
 
                 scheduler.step()
 
