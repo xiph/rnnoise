@@ -115,8 +115,8 @@ if __name__ == '__main__':
 
                 pred_gain, pred_vad, states = model(features, states=states)
                 states = [state.detach() for state in states]
-                gain = gain[:,4:,:]
-                vad = vad[:,4:,:]
+                gain = gain[:,3:-1,:]
+                vad = vad[:,3:-1,:]
                 target_gain = torch.clamp(gain, min=0)
                 target_gain = target_gain*(torch.tanh(5*target_gain)**2)
 

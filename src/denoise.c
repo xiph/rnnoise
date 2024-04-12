@@ -82,6 +82,11 @@ struct DenoiseState {
   float mem_hp_x[2];
   float lastg[NB_BANDS];
   RNNState rnn;
+  kiss_fft_cpx delayed_X[FREQ_SIZE];
+  kiss_fft_cpx delayed_P[FREQ_SIZE];
+  float delayed_Ex[NB_BANDS], delayed_Ep[NB_BANDS];
+  float delayed_Exp[NB_BANDS];
+
 };
 
 static void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
@@ -384,7 +389,7 @@ void rnn_pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, c
 float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   int i;
   kiss_fft_cpx X[FREQ_SIZE];
-  kiss_fft_cpx P[WINDOW_SIZE];
+  kiss_fft_cpx P[FREQ_SIZE];
   float x[FRAME_SIZE];
   float Ex[NB_BANDS], Ep[NB_BANDS];
   float Exp[NB_BANDS];
@@ -402,7 +407,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 #if !TRAINING
     compute_rnn(&st->model, &st->rnn, g, &vad_prob, features, st->arch);
 #endif
-    rnn_pitch_filter(X, P, Ex, Ep, Exp, g);
+    rnn_pitch_filter(st->delayed_X, st->delayed_P, st->delayed_Ex, st->delayed_Ep, st->delayed_Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
       g[i] = MAX16(g[i], alpha*st->lastg[i]);
@@ -411,13 +416,18 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
-      X[i].r *= gf[i];
-      X[i].i *= gf[i];
+      st->delayed_X[i].r *= gf[i];
+      st->delayed_X[i].i *= gf[i];
     }
 #endif
   }
+  frame_synthesis(st, out, st->delayed_X);
 
-  frame_synthesis(st, out, X);
+  RNN_COPY(st->delayed_X, X, FREQ_SIZE);
+  RNN_COPY(st->delayed_P, P, FREQ_SIZE);
+  RNN_COPY(st->delayed_Ex, Ex, NB_BANDS);
+  RNN_COPY(st->delayed_Ep, Ep, NB_BANDS);
+  RNN_COPY(st->delayed_Exp, Exp, NB_BANDS);
   return vad_prob;
 }
 
