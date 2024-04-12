@@ -127,6 +127,7 @@ if __name__ == '__main__':
 
                 loss.backward()
                 optimizer.step()
+                model.sparsify()
 
                 scheduler.step()
 
