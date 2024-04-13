@@ -39,7 +39,15 @@ is a convenience copy.
 
 To train an RNNoise model, you need both clean speech data, and noise data.
 Both need to be sampled at 48 kHz, in 16-bit PCM format (machine endian).
-Clean speech data can be obtained from https://media.xiph.org/rnnoise/data/tts_speech_48k.sw
+Clean speech data can be obtained from
+https://media.xiph.org/rnnoise/data/tts_speech_48k.sw
+For noise data, we suggest concatenating the 48 kHz noise data from DEMAND at
+https://zenodo.org/records/1227121
+with contrib_noise.sw and synthetic_noise.sw noise files from
+https://media.xiph.org/rnnoise/data/
+To balance out the data, we recommend using multiple (e.g. 5) copies of the
+contrib_noise.sw and synthetic_noise.sw noise files.
+
 The first step is to take the speech and noise, and mix them in a variety of ways
 to simulate real life conditions (including pauses, filtering and more).
 Assuming the files are called speech.pcm and noise.pcm, start by generating
