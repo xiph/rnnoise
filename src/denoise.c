@@ -50,9 +50,6 @@
 #endif
 
 
-/* The built-in model, used if no file is given as input */
-extern const struct RNNModel rnnoise_model_orig;
-
 /* ERB bandwidths going in reverse from 20 kHz and then replacing the 700 and 800
    with just 750 because having 32 bands is convenient for the DNN. 
    B(1)=400;
@@ -226,6 +223,33 @@ static void apply_window(float *x) {
   }
 }
 
+struct RNNModel {
+  unsigned char *blob;
+  int blob_len;
+};
+
+RNNModel *rnnoise_model_from_file(FILE *f) {
+  RNNModel *model;
+  model = malloc(sizeof(*model));
+
+  fseek(f, 0, SEEK_END);
+  model->blob_len = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  model->blob = malloc(model->blob_len);
+  if (fread(model->blob, model->blob_len, 1, f) != 1)
+  {
+    rnnoise_model_free(model);
+    return NULL;
+  }
+  return model;
+}
+
+void rnnoise_model_free(RNNModel *model) {
+  free(model->blob);
+  free(model);
+}
+
 int rnnoise_get_size() {
   return sizeof(DenoiseState);
 }
@@ -234,21 +258,41 @@ int rnnoise_get_frame_size() {
   return FRAME_SIZE;
 }
 
-extern const WeightArray rnnoise_arrays[];
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
-  init_rnnoise(&st->model, rnnoise_arrays);
 #if !TRAINING
-  st->arch = rnn_select_arch();
+  if (model != NULL) {
+    WeightArray *list;
+    int ret = 1;
+    parse_weights(&list, model->blob, model->blob_len);
+    if (list != NULL) {
+      ret = init_rnnoise(&st->model, list);
+      opus_free(list);
+    }
+    if (ret != 0) return -1;
+  }
+#ifndef USE_WEIGHTS_FILE
+  else {
+    int ret = init_rnnoise(&st->model, rnnoise_arrays);
+    if (ret != 0) return -1;
+  }
 #endif
+  st->arch = rnn_select_arch();
+#else
   (void)model;
+#endif
   return 0;
 }
 
 DenoiseState *rnnoise_create(RNNModel *model) {
+  int ret;
   DenoiseState *st;
   st = malloc(rnnoise_get_size());
-  rnnoise_init(st, model);
+  ret = rnnoise_init(st, model);
+  if (ret != 0) {
+    free(st);
+    return NULL;
+  }
   return st;
 }
 
