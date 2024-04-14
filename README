@@ -35,11 +35,17 @@ The latest version of the source is available from
 https://gitlab.xiph.org/xiph/rnnoise .  The GitHub repository
 is a convenience copy.
 
-== TRAINING ==
+== Training ==
+
+The models distributed with RNNoise are now trained using only the publicly
+available datasets listed below and using the training precedure described
+here. Exact results will still depend on the the exact mix us data used,
+on how long the training is performed and on the various random seeds involved.
 
 To train an RNNoise model, you need both clean speech data, and noise data.
 Both need to be sampled at 48 kHz, in 16-bit PCM format (machine endian).
-Clean speech data can be obtained from
+Clean speech data can be obtained from the datasets listed in the datasets.txt
+file, or by downloaded the already-concatenation of those files in
 https://media.xiph.org/rnnoise/data/tts_speech_48k.sw
 For noise data, we suggest concatenating the 48 kHz noise data from DEMAND at
 https://zenodo.org/records/1227121
@@ -78,12 +84,30 @@ concatenate the output to a single file.
 Once the feature file is computed, you can start the training with:
 % python3 train_rnnoise.py features.f32 output_directory
 
-The training will produce .pth files, e.g. rnnoise_200.pth
+Choose a number of epochs (using --epochs) that leads to about 75000 weight
+updates. The training will produce .pth files, e.g. rnnoise_50.pth .
 The next step is to convert the model to C files using:
 
-% python3 dump_rnnoise_weights.py --quantize rnnoise_200.pth rnnoise_c
+% python3 dump_rnnoise_weights.py --quantize rnnoise_50.pth rnnoise_c
 
 which will produce the rnnoise_data.c and rnnoise_data.h files in the
 rnnoise_c directory.
 
 Copy these files to src/ and then build RNNoise using the instructions above.
+
+For slightly better results, a trained model can be used to remove any noise
+from the "clean" training speech, before restaring the denoising process
+again (no need to do that more than once).
+
+== Loadable Models ==
+
+The model format has changed since v0.1.1. Models now use a binary
+"machine endian" format. To output a model in that format, build RNNoise
+with that model and use the dump_weights_blob executable to output a
+weights_blob.bin binary file. That file can then be used with the
+rnnoise_model_from_file() API call. Note that the model object MUST NOT
+be deleted while the RNNoise state is active and the file MUST NOT
+be closed.
+
+To avoid including the default model in the build (e.g. to reduce download
+size) and rely only on model loading, add -DUSE_WEIGHTS_FILE to the CFLAGS.
