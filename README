@@ -111,3 +111,10 @@ be closed.
 
 To avoid including the default model in the build (e.g. to reduce download
 size) and rely only on model loading, add -DUSE_WEIGHTS_FILE to the CFLAGS.
+To be able to load different models, the model size (and header file) needs
+to patch the size use during build. Otherwise the model will not load
+We provide a "little" model with half as an alternative. To use the smaller
+model, rename rnnoise_data_little.c to rnnoise_data.c. It is possible
+to build both the regular and little binary weights and load any of them
+at run time since the little model has the same size as the regular one
+(except for the increased sparsity).
