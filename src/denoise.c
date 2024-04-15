@@ -224,18 +224,40 @@ static void apply_window(float *x) {
 }
 
 struct RNNModel {
-  unsigned char *blob;
+  /* Set either blob or const_blob. */
+  const void *const_blob;
+  void *blob;
   int blob_len;
+  FILE *file;
 };
+
+RNNModel *rnnoise_model_from_buffer(const void *ptr, int len) {
+  RNNModel *model;
+  model = malloc(sizeof(*model));
+  model->blob = NULL;
+  model->const_blob = ptr;
+  model->blob_len = len;
+  return model;
+}
+
+RNNModel *rnnoise_model_from_filename(const char *filename) {
+  RNNModel *model;
+  FILE *f = fopen(filename, "rb");
+  model = rnnoise_model_from_file(f);
+  model->file = f;
+  return model;
+}
 
 RNNModel *rnnoise_model_from_file(FILE *f) {
   RNNModel *model;
   model = malloc(sizeof(*model));
+  model->file = NULL;
 
   fseek(f, 0, SEEK_END);
   model->blob_len = ftell(f);
   fseek(f, 0, SEEK_SET);
 
+  model->const_blob = NULL;
   model->blob = malloc(model->blob_len);
   if (fread(model->blob, model->blob_len, 1, f) != 1)
   {
@@ -246,7 +268,8 @@ RNNModel *rnnoise_model_from_file(FILE *f) {
 }
 
 void rnnoise_model_free(RNNModel *model) {
-  free(model->blob);
+  if (model->file != NULL) fclose(model->file);
+  if (model->blob != NULL) free(model->blob);
   free(model);
 }
 
@@ -264,7 +287,7 @@ int rnnoise_init(DenoiseState *st, RNNModel *model) {
   if (model != NULL) {
     WeightArray *list;
     int ret = 1;
-    parse_weights(&list, model->blob, model->blob_len);
+    parse_weights(&list, model->blob ? model->blob : model->const_blob, model->blob_len);
     if (list != NULL) {
       ret = init_rnnoise(&st->model, list);
       opus_free(list);

@@ -37,8 +37,7 @@ int main(int argc, char **argv) {
   FILE *f1, *fout;
   DenoiseState *st;
 #ifdef USE_WEIGHTS_FILE
-  FILE *model_file = fopen("weights_blob.bin", "r");
-  RNNModel *model = rnnoise_model_from_file(model_file);
+  RNNModel *model = rnnoise_model_from_filename("weights_blob.bin");
   st = rnnoise_create(model);
 #else
   st = rnnoise_create(NULL);
@@ -64,7 +63,6 @@ int main(int argc, char **argv) {
   fclose(f1);
   fclose(fout);
 #ifdef USE_WEIGHTS_FILE
-  fclose(model_file);
   rnnoise_model_free(model);
 #endif
   return 0;
