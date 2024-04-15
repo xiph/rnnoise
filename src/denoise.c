@@ -1,4 +1,5 @@
-/* Copyright (c) 2018 Gregor Richards
+/* Copyright (c) 2024 Jean-Marc Valin
+ * Copyright (c) 2018 Gregor Richards
  * Copyright (c) 2017 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
