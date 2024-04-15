@@ -32,7 +32,8 @@
 #define VEC_NEON_H
 
 #include <arm_neon.h>
-#include "os_support.h"
+#include "opus_types.h"
+#include "common.h"
 
 #if defined(__arm__) && !defined(__aarch64__) && (__ARM_ARCH < 8 || !defined(__clang__))
 /* Emulate vcvtnq_s32_f32() for ARMv7 Neon. */
@@ -302,7 +303,7 @@ static inline void sgemv(float *out, const float *weights, int rows, int cols, i
 static inline void sparse_sgemv8x4(float *out, const float *w, const int *idx, int rows, const float *x)
 {
    int i, j;
-   OPUS_CLEAR(out, rows);
+   RNN_CLEAR(out, rows);
    for (i=0;i<rows;i+=8)
    {
       int cols;
