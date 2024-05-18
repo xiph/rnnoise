@@ -67,6 +67,7 @@ const int eband20ms[NB_BANDS+2] = {
 
 struct DenoiseState {
   RNNoise model;
+  xcorr_kernel_cb xcorr_callback;
 #if !TRAINING
   int arch;
 #endif
@@ -317,6 +318,7 @@ DenoiseState *rnnoise_create(RNNModel *model) {
     free(st);
     return NULL;
   }
+  st->xcorr_callback = xcorr_kernel;
   return st;
 }
 
@@ -359,9 +361,9 @@ int rnn_compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
   pre[0] = &st->pitch_buf[0];
-  rnn_pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1);
+  rnn_pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1,st->xcorr_callback);
   rnn_pitch_search(pitch_buf+(PITCH_MAX_PERIOD>>1), pitch_buf, PITCH_FRAME_SIZE,
-               PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD, &pitch_index);
+               PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD, &pitch_index,st->xcorr_callback);
   pitch_index = PITCH_MAX_PERIOD-pitch_index;
 
   gain = rnn_remove_doubling(pitch_buf, PITCH_MAX_PERIOD, PITCH_MIN_PERIOD,
@@ -499,3 +501,7 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   return vad_prob;
 }
 
+void rnnoise_set_xcorr_kernel_cb(DenoiseState *st, xcorr_kernel_cb xcorr_callback)
+{
+  st->xcorr_callback = xcorr_callback;
+}

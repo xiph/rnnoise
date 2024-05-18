@@ -52,5 +52,6 @@ static RNN_INLINE void rnnoise_free (void *ptr)
 #  endif
 # endif
 
+typedef void(*xcorr_kernel_cb)(const float * x, const float * y, float sum[4], int len);
 
 #endif

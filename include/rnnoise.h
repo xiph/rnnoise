@@ -124,6 +124,15 @@ RNNOISE_EXPORT RNNModel *rnnoise_model_from_filename(const char *filename);
  */
 RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
 
+
+/**
+ * Sets xcorr_kernel_cb to the default or user_provided one
+ */
+
+typedef void(*xcorr_kernel_cb)(const float * x, const float * y, float sum[4], int len);
+RNNOISE_EXPORT void rnnoise_set_xcorr_kernel_cb(DenoiseState *st, xcorr_kernel_cb xcorr_callback);
+
+
 #ifdef __cplusplus
 }
 #endif
