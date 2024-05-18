@@ -96,4 +96,8 @@ target_include_directories(rnnoise PUBLIC
         $<INSTALL_INTERFACE:include>
         PRIVATE src)
 
+if (UNIX)
+        target_link_libraries(rnnoise PUBLIC m)
+endif(UNIX)
+
 add_subdirectory(examples)
