@@ -1,0 +1,11 @@
+[requires]
+libsndfile/1.2.2
+cxxopts/3.2.0
+fmt/10.2.1
+spdlog/1.14.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+[layout]
+cmake_layout

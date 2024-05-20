@@ -1,0 +1,9 @@
+build/
+downloads
+src/rnnoise_data_little.c
+src/rnnoise_data_little.h
+src/rnnoise_data.h
+src/rnnoise_data.c
+CMakeUserPresets.json
+.vscode/
+sample_audios/
