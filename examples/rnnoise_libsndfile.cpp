@@ -45,7 +45,8 @@ static void normalize_to_rnnoise_expected_level(TSamplesBufferArray& samples_buf
 
 static void denormalize_from_rnnoise_expected_level(TSamplesBufferArray& samples_buffer){
     for(auto& sample : samples_buffer){
-            sample /= RNNOISE_PCM16_MULTIPLY_FACTOR;
+            // sample /= RNNOISE_PCM16_MULTIPLY_FACTOR;
+            static_cast<void>(test);
     }
 }
 
