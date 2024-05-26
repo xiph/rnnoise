@@ -7,7 +7,7 @@ find_package(cxxopts REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
 
-add_executable(rnnoise_libsoundfile rnnoise_libsndfile.cpp)
+add_executable(rnnoise_libsoundfile rnnoise_libsndfile.cpp profiling/xcorr_impl.cpp)
 target_link_libraries(
     rnnoise_libsoundfile
     PRIVATE

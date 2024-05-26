@@ -5,15 +5,11 @@ mkdir build
 
 ## For debug version of the app
 conan install conanfile.txt --build=missing --settings=build_type=Debug
-cd build
-cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=./Debug/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug ..
-
+cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=./Debug/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug -B build
+cmake --build build
 
 ## For Release version:
 conan install conanfile.txt --build=missing
-cd build
-cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=./Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
-
-
-cmake --build .
+cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=./Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -B build
+cmake --build build
 ```

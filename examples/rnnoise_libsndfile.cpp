@@ -12,7 +12,7 @@
 #include <optional>
 
 #include "lazy_file_writer.hpp"
-
+#include "profiling/xcorr_impl.h"
 template <auto DeleterFunction>
 using CustomDeleter = std::integral_constant<decltype(DeleterFunction), DeleterFunction>;
 
@@ -35,6 +35,7 @@ RNNoiseDenoiseStatePtr rnnoise_denoise_state_ptr;
 
 static void initialize_rnnoise_library(){
     rnnoise_denoise_state_ptr.reset(rnnoise_create(nullptr));
+    rnnoise_set_xcorr_kernel_cb(rnnoise_denoise_state_ptr.get(),xcorr_native_impl);
 }
 
 static void normalize_to_rnnoise_expected_level(TSamplesBufferArray& samples_buffer){

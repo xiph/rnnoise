@@ -4,6 +4,8 @@ project(rnnoise)
 option(RNNOISE_COMPILE_OPUS OFF)
 option(RNNOISE_COMPILE_DEMO ON)
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+
 if(RNNOISE_COMPILE_OPUS)
 	add_definitions(-DCOMPILE_OPUS)
 endif()
