@@ -6,6 +6,7 @@ find_package(SndFile REQUIRED)
 find_package(cxxopts REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(mimalloc REQUIRED)
 
 add_executable(rnnoise_libsoundfile rnnoise_libsndfile.cpp profiling/xcorr_impl.cpp)
 target_link_libraries(
@@ -16,5 +17,6 @@ target_link_libraries(
     cxxopts::cxxopts
     fmt::fmt
     spdlog::spdlog
+    mimalloc-static
 )
 target_include_directories(rnnoise_libsoundfile PRIVATE ${CMAKE_CURRENT_LIST_DIR})

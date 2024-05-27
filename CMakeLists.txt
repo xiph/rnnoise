@@ -4,6 +4,8 @@ project(rnnoise)
 option(RNNOISE_COMPILE_OPUS OFF)
 option(RNNOISE_COMPILE_DEMO ON)
 
+find_package(mimalloc REQUIRED)
+
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
 
 if(RNNOISE_COMPILE_OPUS)
@@ -99,3 +101,5 @@ target_include_directories(rnnoise PUBLIC
         PRIVATE src)
 
 add_subdirectory(examples)
+
+target_link_libraries(rnnoise PUBLIC mimalloc-static)

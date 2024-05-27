@@ -13,6 +13,9 @@
 
 #include "lazy_file_writer.hpp"
 #include "profiling/xcorr_impl.h"
+
+#include <mimalloc.h>
+
 template <auto DeleterFunction>
 using CustomDeleter = std::integral_constant<decltype(DeleterFunction), DeleterFunction>;
 
@@ -103,6 +106,9 @@ int main(int argc, char** argv){
         exit(0);
     }
 
+    mi_option_enable(mi_option_verbose);
+    mi_option_enable(mi_option_show_stats);
+
 
     using TOptionalPathHolder = std::optional<std::filesystem::path>;
     TOptionalPathHolder input_file_path_opt = result["input"].as<std::filesystem::path>();
@@ -127,5 +133,7 @@ int main(int argc, char** argv){
         input_file_path_opt.value(),
         output_file_path_opt.value()
     );
+
+    mi_stats_print(nullptr);
     return 0;
 }
