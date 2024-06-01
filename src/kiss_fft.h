@@ -34,6 +34,9 @@
 #include "arch.h"
 
 #include <stdlib.h>
+#include <mimalloc.h>
+#include <mimalloc-override.h>  
+
 #define opus_alloc(x) malloc(x)
 #define opus_free(x) free(x)
 

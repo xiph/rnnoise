@@ -41,6 +41,8 @@
 #include "arch.h"
 #include "kiss_fft.h"
 #include "src/_kiss_fft_guts.h"
+#include <mimalloc.h>
+#include <mimalloc-override.h>  
 
 int lowpass = FREQ_SIZE;
 int band_lp = NB_BANDS;
