@@ -67,6 +67,8 @@ const int eband20ms[NB_BANDS+2] = {
 /*0 100 200 300 400 500 600 750 900 1.1 1.2 1.4 1.6 1.8 2.1 2.4 2.7 3.0 3.4 3.9 4.4 4.9  5.5  6.2  7.0  7.9  8.8  9.9 11.2 12.6 14.1 15.9 17.8 20.0*/
   0, 2,  4,  6,  8,  10, 12, 15, 18, 21, 24, 28, 32, 36, 41, 47, 53, 60, 68, 77, 87, 98, 110, 124, 140, 157, 176, 198, 223, 251, 282, 317, 356, 400};
 
+#define DENOISE_STATE_STORAGE_SIZE 32696  
+static char denoise_state_storage [DENOISE_STATE_STORAGE_SIZE];
 
 struct DenoiseState {
   RNNoise model;
@@ -233,50 +235,7 @@ struct RNNModel {
   const void *const_blob;
   void *blob;
   int blob_len;
-  FILE *file;
 };
-
-RNNModel *rnnoise_model_from_buffer(const void *ptr, int len) {
-  RNNModel *model;
-  model = malloc(sizeof(*model));
-  model->blob = NULL;
-  model->const_blob = ptr;
-  model->blob_len = len;
-  return model;
-}
-
-RNNModel *rnnoise_model_from_filename(const char *filename) {
-  RNNModel *model;
-  FILE *f = fopen(filename, "rb");
-  model = rnnoise_model_from_file(f);
-  model->file = f;
-  return model;
-}
-
-RNNModel *rnnoise_model_from_file(FILE *f) {
-  RNNModel *model;
-  model = malloc(sizeof(*model));
-  model->file = NULL;
-
-  fseek(f, 0, SEEK_END);
-  model->blob_len = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  model->const_blob = NULL;
-  model->blob = malloc(model->blob_len);
-  if (fread(model->blob, model->blob_len, 1, f) != 1)
-  {
-    rnnoise_model_free(model);
-    return NULL;
-  }
-  return model;
-}
-
-void rnnoise_model_free(RNNModel *model) {
-  if (model->file != NULL) fclose(model->file);
-  if (model->blob != NULL) free(model->blob);
-  free(model);
-}
 
 int rnnoise_get_size() {
   return sizeof(DenoiseState);
@@ -288,45 +247,25 @@ int rnnoise_get_frame_size() {
 
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
-#if !TRAINING
-  if (model != NULL) {
-    WeightArray *list;
-    int ret = 1;
-    parse_weights(&list, model->blob ? model->blob : model->const_blob, model->blob_len);
-    if (list != NULL) {
-      ret = init_rnnoise(&st->model, list);
-      opus_free(list);
-    }
-    if (ret != 0) return -1;
-  }
+
 #ifndef USE_WEIGHTS_FILE
-  else {
-    int ret = init_rnnoise(&st->model, rnnoise_arrays);
-    if (ret != 0) return -1;
-  }
+  int ret = init_rnnoise(&st->model, rnnoise_arrays);
+  if (ret != 0) return -1;
 #endif
   st->arch = rnn_select_arch();
-#else
-  (void)model;
-#endif
   return 0;
 }
 
 DenoiseState *rnnoise_create(RNNModel *model) {
   int ret;
   DenoiseState *st;
-  st = malloc(rnnoise_get_size());
+  st = (DenoiseState*) denoise_state_storage;
   ret = rnnoise_init(st, model);
   if (ret != 0) {
-    free(st);
     return NULL;
   }
   st->xcorr_callback = xcorr_kernel;
   return st;
-}
-
-void rnnoise_destroy(DenoiseState *st) {
-  free(st);
 }
 
 #if TRAINING

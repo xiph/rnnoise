@@ -29,16 +29,16 @@ inline constexpr std::size_t SAMPLERATE = 48000;
 
 inline constexpr float RNNOISE_PCM16_MULTIPLY_FACTOR = 32768.0f;
 
-using RNNoiseDenoiseStatePtr = PointerWrapper<DenoiseState,rnnoise_destroy>;
-using RnnModelPtr = PointerWrapper<RNNModel,rnnoise_model_free>;
+using RNNoiseDenoiseStatePtr = DenoiseState*;
+using RnnModelPtr = RNNModel*;
 using TSamplesBufferArray = std::array<float,AUDIO_BUFFER_LENGTH>;
 
 RnnModelPtr rnn_model_ptr;
 RNNoiseDenoiseStatePtr rnnoise_denoise_state_ptr;
 
 static void initialize_rnnoise_library(){
-    rnnoise_denoise_state_ptr.reset(rnnoise_create(nullptr));
-    rnnoise_set_xcorr_kernel_cb(rnnoise_denoise_state_ptr.get(),xcorr_native_impl);
+    rnnoise_denoise_state_ptr = rnnoise_create(nullptr);
+    rnnoise_set_xcorr_kernel_cb(rnnoise_denoise_state_ptr,xcorr_native_impl);
 }
 
 static void normalize_to_rnnoise_expected_level(TSamplesBufferArray& samples_buffer){
@@ -82,7 +82,7 @@ static void process_audio_recording(
     spdlog::info("Processing audio...");
     while (input_audio_file_handle.read (samples_buffer.data(), samples_buffer.size()) != 0) {
         normalize_to_rnnoise_expected_level(samples_buffer);
-        float vad_prob = rnnoise_process_frame(rnnoise_denoise_state_ptr.get(), samples_buffer.data(), samples_buffer.data());
+        float vad_prob = rnnoise_process_frame(rnnoise_denoise_state_ptr, samples_buffer.data(), samples_buffer.data());
         dump_vad_prob(lazy_vad_probe_writer,vad_prob);
         denormalize_from_rnnoise_expected_level(samples_buffer);
         output_audio_file_handle.write(samples_buffer.data(),samples_buffer.size());

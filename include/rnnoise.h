@@ -80,50 +80,11 @@ RNNOISE_EXPORT int rnnoise_init(DenoiseState *st, RNNModel *model);
 RNNOISE_EXPORT DenoiseState *rnnoise_create(RNNModel *model);
 
 /**
- * Free a DenoiseState produced by rnnoise_create.
- *
- * The optional custom model must be freed by rnnoise_model_free() after.
- */
-RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
-
-/**
  * Denoise a frame of samples
  *
  * in and out must be at least rnnoise_get_frame_size() large.
  */
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
-
-/**
- * Load a model from a memory buffer
- *
- * It must be deallocated with rnnoise_model_free() and the buffer must remain
- * valid until after the returned object is destroyed.
- */
-RNNOISE_EXPORT RNNModel *rnnoise_model_from_buffer(const void *ptr, int len);
-
-
-/**
- * Load a model from a file
- *
- * It must be deallocated with rnnoise_model_free() and the file must not be
- * closed until the returned object is destroyed.
- */
-RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
-
-/**
- * Load a model from a file name
- *
- * It must be deallocated with rnnoise_model_free()
- */
-RNNOISE_EXPORT RNNModel *rnnoise_model_from_filename(const char *filename);
-
-/**
- * Free a custom model
- *
- * It must be called after all the DenoiseStates referring to it are freed.
- */
-RNNOISE_EXPORT void rnnoise_model_free(RNNModel *model);
-
 
 /**
  * Sets xcorr_kernel_cb to the default or user_provided one
