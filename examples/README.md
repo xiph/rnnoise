@@ -11,5 +11,5 @@ cmake --build build
 ## For Release version:
 conan install conanfile.txt --build=missing
 cmake -G"Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=./Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -B build
-cmake --build build
+cmake --build buil
 ```

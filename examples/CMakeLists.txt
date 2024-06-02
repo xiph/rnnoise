@@ -1,3 +1,5 @@
+set (CMAKE_CXX_STANDARD 17)
+
 add_executable(rnnoise_demo rnnoise_demo.c)
 
 target_link_libraries(rnnoise_demo PRIVATE rnnoise)
@@ -9,6 +11,12 @@ find_package(spdlog REQUIRED)
 find_package(mimalloc REQUIRED)
 
 add_executable(rnnoise_libsoundfile rnnoise_libsndfile.cpp profiling/xcorr_impl.cpp)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    message(WARNING "Compiling RNNOISE for Windows...")
+    target_compile_definitions(rnnoise_libsoundfile PRIVATE WINDOWS_SPECIFIC_MACRO)
+endif()
+
 target_link_libraries(
     rnnoise_libsoundfile
     PRIVATE

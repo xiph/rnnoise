@@ -100,6 +100,14 @@ target_include_directories(rnnoise PUBLIC
         $<INSTALL_INTERFACE:include>
         PRIVATE src)
 
+
 add_subdirectory(examples)
 
 target_link_libraries(rnnoise PUBLIC mimalloc-static)
+
+if (UNIX)
+        target_link_libraries(rnnoise PUBLIC m)
+endif(UNIX)
+
+add_subdirectory(examples)
+
