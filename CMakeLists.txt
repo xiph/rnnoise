@@ -101,8 +101,6 @@ target_include_directories(rnnoise PUBLIC
         PRIVATE src)
 
 
-add_subdirectory(examples)
-
 target_link_libraries(rnnoise PUBLIC mimalloc-static)
 
 if (UNIX)
