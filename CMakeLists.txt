@@ -6,7 +6,9 @@ option(RNNOISE_COMPILE_DEMO ON)
 
 find_package(mimalloc REQUIRED)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+endif()
 
 if(RNNOISE_COMPILE_OPUS)
 	add_definitions(-DCOMPILE_OPUS)
