@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <fmt/core.h>
-#include <spdlog/spdlog.h>
 #include <array>
 #include <memory>
 #include <utility>
@@ -13,6 +12,7 @@
 
 #include "lazy_file_writer.hpp"
 #include "profiling/xcorr_impl.h"
+#include "profiling/xcorr_offload_kernel.hpp"
 
 #include <mimalloc.h>
 
@@ -38,7 +38,7 @@ RNNoiseDenoiseStatePtr rnnoise_denoise_state_ptr;
 
 static void initialize_rnnoise_library(){
     rnnoise_denoise_state_ptr = rnnoise_create(nullptr);
-    rnnoise_set_xcorr_kernel_cb(rnnoise_denoise_state_ptr,xcorr_native_impl);
+    rnnoise_set_xcorr_kernel_cb(rnnoise_denoise_state_ptr,xcorr_kernel);
 }
 
 static void normalize_to_rnnoise_expected_level(TSamplesBufferArray& samples_buffer){
@@ -63,10 +63,17 @@ static void process_audio_recording(
 ){
     SndfileHandle input_audio_file_handle{SndfileHandle(input_file.c_str())};
 
-    spdlog::info("Opened input audio file:{}", input_file.generic_string());
-    spdlog::info("Number of channels:{}", input_audio_file_handle.channels());
-    spdlog::info("Samplerate:{}", input_audio_file_handle.samplerate());
+    fmt::println(stdout,"Opened input audio file:{}", input_file.generic_string());
+    fmt::println(stdout,"Number of channels:{}", input_audio_file_handle.channels());
 
+    auto input_samplerate = input_audio_file_handle.samplerate();
+    fmt::println(stdout,"Samplerate:{}", input_samplerate);
+
+    const bool samplerate_mistmatch{input_audio_file_handle.samplerate() != SAMPLERATE };
+    if(samplerate_mistmatch){
+        fmt::println(stderr,"Audio samplerate mistmatch! Expected 48K, got:{}", input_samplerate);
+        std::exit(-1);
+    }
     SndfileHandle output_audio_file_handle{SndfileHandle{
         output_file.c_str(),
         SFM_WRITE,
@@ -79,7 +86,7 @@ static void process_audio_recording(
     
     static TSamplesBufferArray samples_buffer{};
 
-    spdlog::info("Processing audio...");
+    fmt::println(stdout,"Processing audio...");
     while (input_audio_file_handle.read (samples_buffer.data(), samples_buffer.size()) != 0) {
         normalize_to_rnnoise_expected_level(samples_buffer);
         float vad_prob = rnnoise_process_frame(rnnoise_denoise_state_ptr, samples_buffer.data(), samples_buffer.data());
@@ -87,7 +94,7 @@ static void process_audio_recording(
         denormalize_from_rnnoise_expected_level(samples_buffer);
         output_audio_file_handle.write(samples_buffer.data(),samples_buffer.size());
     }
-    spdlog::info("Processing done. WAVE file can be found at: {}", output_file.generic_string());
+    fmt::println(stdout,"Processing done. WAVE file can be found at: {}", output_file.generic_string());
 }
 
 #ifdef WINDOWS_SPECIFIC_MACRO
@@ -113,7 +120,7 @@ int main(int argc, char** argv){
     if (result.count("help"))
     {
         fmt::print(options.help());
-        exit(0);
+        std::exit(0);
     }
 
     mi_option_enable(mi_option_verbose);
@@ -133,7 +140,7 @@ int main(int argc, char** argv){
     catch(...){
         std::cerr << "Failed to obtain one of the required CMD args. Check help message below and verify passed options:" << std::endl;
         fmt::print(options.help());
-        exit(-1);
+        std::exit(-1);
     }
 
     LazyFileWriter vad_file_probe(output_vad_probe.value());
