@@ -61,7 +61,7 @@ def main():
                 result_filename = f"{input_file_path.stem}_denoised.wav"
                 result_path = pathlib.Path(output_path,result_filename)
                 execution_cmd.append(f"--output={result_path}")
-                result = subprocess.run(execution_cmd, check=True, capture_output=True)
+                result = subprocess.run(execution_cmd, check=True, capture_output=True, cwd=output_path)
 
             except subprocess.CalledProcessError as e:
                 print(f"Error processing {file_path}")
