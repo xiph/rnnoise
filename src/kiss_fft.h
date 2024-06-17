@@ -34,8 +34,11 @@
 #include "arch.h"
 
 #include <stdlib.h>
+
+#ifdef USE_MIMALLOC_ALLOCATOR
 #include <mimalloc.h>
 #include <mimalloc-override.h>  
+#endif
 
 #ifdef __cplusplus
 extern "C" {

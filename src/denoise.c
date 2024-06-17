@@ -43,8 +43,10 @@
 #include "rnn.h"
 #include "cpu_support.h"
 
+#ifdef USE_MIMALLOC_ALLOCATOR
 #include <mimalloc.h>
 #include <mimalloc-override.h>  
+#endif
 
 #define SQUARE(x) ((x)*(x))
 

@@ -3,8 +3,11 @@ project(rnnoise)
 
 option(RNNOISE_COMPILE_OPUS OFF)
 option(RNNOISE_COMPILE_DEMO ON)
+option(RNNOISE_BAREMETAL OFF)
 
-find_package(mimalloc REQUIRED)
+if(NOT RNNOISE_BAREMETAL)
+        find_package(mimalloc REQUIRED)
+endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
@@ -103,11 +106,15 @@ target_include_directories(rnnoise PUBLIC
         PRIVATE src)
 
 
-target_link_libraries(rnnoise PUBLIC mimalloc-static)
+if(NOT RNNOISE_BAREMETAL)
+        target_link_libraries(rnnoise PUBLIC mimalloc-static)
+        target_compile_definitions(rnnoise PUBLIC USE_MIMALLOC_ALLOCATOR)
+endif()
 
 if (UNIX)
         target_link_libraries(rnnoise PUBLIC m)
 endif(UNIX)
 
-add_subdirectory(examples)
-
+if(RNNOISE_COMPILE_DEMO)
+        add_subdirectory(examples)
+endif()
