@@ -5,17 +5,23 @@
 
 #include "stdlib.h"
 #include "string.h"
-
+#ifdef USE_MIMALLOC_ALLOCATOR
+   #include <mimalloc.h>
+   #include <mimalloc-override.h>  
+#endif
 #define RNN_INLINE inline
 #define OPUS_INLINE inline
-
 
 /** RNNoise wrapper for malloc(). To do your own dynamic allocation, all you need t
 o do is replace this function and rnnoise_free */
 #ifndef OVERRIDE_RNNOISE_ALLOC
 static RNN_INLINE void *rnnoise_alloc (size_t size)
 {
+#ifdef USE_MIMALLOC_ALLOCATOR
+   return mi_malloc(size);
+#else
    return malloc(size);
+#endif
 }
 #endif
 
@@ -23,7 +29,11 @@ static RNN_INLINE void *rnnoise_alloc (size_t size)
 #ifndef OVERRIDE_RNNOISE_FREE
 static RNN_INLINE void rnnoise_free (void *ptr)
 {
+#ifdef USE_MIMALLOC_ALLOCATOR
+   mi_free(ptr);
+#else
    free(ptr);
+#endif
 }
 #endif
 
@@ -52,5 +62,6 @@ static RNN_INLINE void rnnoise_free (void *ptr)
 #  endif
 # endif
 
+typedef void(*xcorr_kernel_cb)(const float * x, const float * y, float sum[4], int len);
 
 #endif

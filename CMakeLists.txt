@@ -3,6 +3,15 @@ project(rnnoise)
 
 option(RNNOISE_COMPILE_OPUS OFF)
 option(RNNOISE_COMPILE_DEMO ON)
+option(RNNOISE_BAREMETAL OFF)
+
+if(NOT RNNOISE_BAREMETAL)
+        find_package(mimalloc REQUIRED)
+endif()
+
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+endif()
 
 if(RNNOISE_COMPILE_OPUS)
 	add_definitions(-DCOMPILE_OPUS)
@@ -68,7 +77,7 @@ set(RN_NOISE_SRC
         src/opus_types.h
         src/pitch.h
         src/rnn.h
-        src/rnnoise_data.h
+        src/rnnoise_data_little.h
         include/rnnoise.h
         src/vec.h
 
@@ -79,7 +88,7 @@ set(RN_NOISE_SRC
             src/denoise.c
             src/kiss_fft.c
             src/parse_lpcnet_weights.c
-            src/rnnoise_data.c
+            src/rnnoise_data_little.c
             #write_weights.c
             #dump_features.c
             src/nnet.c
@@ -96,8 +105,16 @@ target_include_directories(rnnoise PUBLIC
         $<INSTALL_INTERFACE:include>
         PRIVATE src)
 
+
+if(NOT RNNOISE_BAREMETAL)
+        target_link_libraries(rnnoise PUBLIC mimalloc-static)
+        target_compile_definitions(rnnoise PUBLIC USE_MIMALLOC_ALLOCATOR)
+endif()
+
 if (UNIX)
         target_link_libraries(rnnoise PUBLIC m)
 endif(UNIX)
 
-add_subdirectory(examples)
+if(RNNOISE_COMPILE_DEMO)
+        add_subdirectory(examples)
+endif()

@@ -51,32 +51,6 @@ static int parse_record(const void **data, int *len, WeightArray *array) {
   return array->size;
 }
 
-int parse_weights(WeightArray **list, const void *data, int len)
-{
-  int nb_arrays=0;
-  int capacity=20;
-  *list = calloc(capacity*sizeof(WeightArray), 1);
-  while (len > 0) {
-    int ret;
-    WeightArray array = {NULL, 0, 0, 0};
-    ret = parse_record(&data, &len, &array);
-    if (ret > 0) {
-      if (nb_arrays+1 >= capacity) {
-        /* Make sure there's room for the ending NULL element too. */
-        capacity = capacity*3/2;
-        *list = realloc(*list, capacity*sizeof(WeightArray));
-      }
-      (*list)[nb_arrays++] = array;
-    } else {
-      free(*list);
-      *list = NULL;
-      return -1;
-    }
-  }
-  (*list)[nb_arrays].name=NULL;
-  return nb_arrays;
-}
-
 static const void *find_array_entry(const WeightArray *arrays, const char *name) {
   while (arrays->name && strcmp(arrays->name, name) != 0) arrays++;
   return arrays;

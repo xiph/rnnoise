@@ -95,7 +95,9 @@ int rnn_autocorr(
                    const opus_val16       *window,
                    int          overlap,
                    int          lag,
-                   int          n)
+                   int          n,
+                   xcorr_kernel_cb xcorr_kernel_executor
+                   )
 {
    opus_val32 d;
    int i, k;
@@ -142,7 +144,7 @@ int rnn_autocorr(
          shift = 0;
    }
 #endif
-   rnn_pitch_xcorr(xptr, xptr, ac, fastN, lag+1);
+   rnn_pitch_xcorr(xptr, xptr, ac, fastN, lag+1,xcorr_kernel_executor);
    for (k=0;k<=lag;k++)
    {
       for (i = k+fastN, d = 0; i < n; i++)

@@ -34,8 +34,11 @@
 #include "arch.h"
 
 #include <stdlib.h>
-#define opus_alloc(x) malloc(x)
-#define opus_free(x) free(x)
+
+#ifdef USE_MIMALLOC_ALLOCATOR
+#include <mimalloc.h>
+#include <mimalloc-override.h>  
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,7 +49,7 @@ extern "C" {
 # define kiss_fft_scalar __m128
 #define KISS_FFT_MALLOC(nbytes) memalign(16,nbytes)
 #else
-#define KISS_FFT_MALLOC opus_alloc
+
 #endif
 
 #ifdef FIXED_POINT
@@ -103,35 +106,6 @@ typedef struct kiss_fft_state{
 #include "arm/fft_arm.h"
 #endif
 
-/*typedef struct kiss_fft_state* kiss_fft_cfg;*/
-
-/**
- *  opus_fft_alloc
- *
- *  Initialize a FFT (or IFFT) algorithm's cfg/state buffer.
- *
- *  typical usage:      kiss_fft_cfg mycfg=opus_fft_alloc(1024,0,NULL,NULL);
- *
- *  The return value from fft_alloc is a cfg buffer used internally
- *  by the fft routine or NULL.
- *
- *  If lenmem is NULL, then opus_fft_alloc will allocate a cfg buffer using malloc.
- *  The returned value should be free()d when done to avoid memory leaks.
- *
- *  The state can be placed in a user supplied buffer 'mem':
- *  If lenmem is not NULL and mem is not NULL and *lenmem is large enough,
- *      then the function places the cfg in mem and the size used in *lenmem
- *      and returns mem.
- *
- *  If lenmem is not NULL and ( mem is NULL or *lenmem is not large enough),
- *      then the function returns NULL and places the minimum cfg
- *      buffer size in *lenmem.
- * */
-
-kiss_fft_state *rnn_fft_alloc_twiddles(int nfft,void * mem,size_t * lenmem, const kiss_fft_state *base, int arch);
-
-kiss_fft_state *rnn_fft_alloc(int nfft,void * mem,size_t * lenmem, int arch);
-
 /**
  * opus_fft(cfg,in_out_buf)
  *
@@ -148,11 +122,6 @@ void rnn_ifft_c(const kiss_fft_state *cfg,const kiss_fft_cpx *fin,kiss_fft_cpx *
 void rnn_fft_impl(const kiss_fft_state *st,kiss_fft_cpx *fout);
 void rnn_ifft_impl(const kiss_fft_state *st,kiss_fft_cpx *fout);
 
-void rnn_fft_free(const kiss_fft_state *cfg, int arch);
-
-
-void rnn_fft_free_arch_c(kiss_fft_state *st);
-int rnn_fft_alloc_arch_c(kiss_fft_state *st);
 
 #if !defined(OVERRIDE_OPUS_FFT)
 /* Is run-time CPU detection enabled on this platform? */
@@ -180,12 +149,6 @@ extern void (*const OPUS_IFFT[OPUS_ARCHMASK+1])(const kiss_fft_state *cfg,
    ((*OPUS_IFFT[(arch)&OPUS_ARCHMASK])(_cfg, _fin, _fout))
 
 #else /* else for if defined(OPUS_HAVE_RTCD) && (defined(HAVE_ARM_NE10)) */
-
-#define rnn_fft_alloc_arch(_st, arch) \
-         ((void)(arch), rnn_fft_alloc_arch_c(_st))
-
-#define rnn_fft_free_arch(_st, arch) \
-         ((void)(arch), rnn_fft_free_arch_c(_st))
 
 #define rnn_fft(_cfg, _fin, _fout, arch) \
          ((void)(arch), rnn_fft_c(_cfg, _fin, _fout))

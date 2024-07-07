@@ -35,12 +35,13 @@
 #define PITCH_H
 
 #include "arch.h"
+#include "common.h"
 
 void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
-      int len, int C);
+      int len, int C,xcorr_kernel_cb xcorr_kernel_executor);
 
 void rnn_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
-                  int len, int max_pitch, int *pitch);
+                  int len, int max_pitch, int *pitch, xcorr_kernel_cb xcorr_kernel_executor);
 
 opus_val16 rnn_remove_doubling(opus_val16 *x, int maxperiod, int minperiod,
       int N, int *T0, int prev_period, opus_val16 prev_gain);
@@ -142,6 +143,6 @@ static OPUS_INLINE opus_val32 celt_inner_prod(const opus_val16 *x,
 }
 
 void rnn_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
-      opus_val32 *xcorr, int len, int max_pitch);
+      opus_val32 *xcorr, int len, int max_pitch,xcorr_kernel_cb xcorr_kernel_executor);
 
 #endif
