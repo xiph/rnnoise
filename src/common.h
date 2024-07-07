@@ -3,11 +3,12 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "stdlib.h"
-#include "string.h"
+#include <string.h>
 #ifdef USE_MIMALLOC_ALLOCATOR
    #include <mimalloc.h>
    #include <mimalloc-override.h>  
+#else
+   #include <stdlib.h>
 #endif
 #define RNN_INLINE inline
 #define OPUS_INLINE inline

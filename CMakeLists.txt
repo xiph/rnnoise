@@ -97,10 +97,17 @@ set(RN_NOISE_SRC
 
 add_library(rnnoise STATIC ${RN_NOISE_SRC})
 
+add_library(rnnoise_amalgamated STATIC include/rnnoise.h header_only/rnnoise_amalgamated.c)
+
 add_definitions(-DRNNOISE_BUILD)
 
 # Include dirs
 target_include_directories(rnnoise PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+        PRIVATE src)
+
+target_include_directories(rnnoise_amalgamated PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
         PRIVATE src)
@@ -113,6 +120,7 @@ endif()
 
 if (UNIX)
         target_link_libraries(rnnoise PUBLIC m)
+        target_link_libraries(rnnoise_amalgamated PUBLIC m)
 endif(UNIX)
 
 if(RNNOISE_COMPILE_DEMO)

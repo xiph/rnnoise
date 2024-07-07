@@ -28,10 +28,11 @@
 #ifndef NNET_ARCH_H
 #define NNET_ARCH_H
 
-#include "nnet.h"
-#include "arch.h"
-#include "common.h"
 #include "vec.h"
+#include "arch.h"
+#include "nnet.h"
+#include "common.h"
+
 
 #define CAT_SUFFIX2(a,b) a ## b
 #define CAT_SUFFIX(a,b) CAT_SUFFIX2(a, b)

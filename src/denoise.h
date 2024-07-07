@@ -44,6 +44,8 @@ extern const WeightArray rnnoise_arrays[];
 
 extern const int eband20ms[];
 
+typedef struct DenoiseState DenoiseState;
+typedef struct RNNModel RNNModel;
 
 void rnn_biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N);
 

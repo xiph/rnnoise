@@ -1,0 +1,3 @@
+[submodule "amalgamation/Heady"]
+	path = amalgamation/Heady
+	url = https://github.com/ValentiWorkLearning/Heady.git

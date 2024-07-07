@@ -10,3 +10,4 @@ CMakeUserPresets.json
 sample_audios/
 evaluation_output/
 rnnoise_env/
+header_only/rnnoise_amalgamated.c

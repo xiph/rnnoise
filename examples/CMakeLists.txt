@@ -23,7 +23,7 @@ endif()
 target_link_libraries(
     rnnoise_libsoundfile
     PRIVATE
-    rnnoise
+    rnnoise_amalgamated
     SndFile::sndfile
     cxxopts::cxxopts
     fmt::fmt

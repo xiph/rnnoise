@@ -61,6 +61,9 @@ jobs:
     - name: Install conan dependencies for runner
       run: pip install conan
 
+    - name: Amalgamate rnnoise
+      run: python3 header_only/amalgamate_me.py
+
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
       id: strings
