@@ -118,3 +118,8 @@ model, rename rnnoise_data_little.c to rnnoise_data.c. It is possible
 to build both the regular and little binary weights and load any of them
 at run time since the little model has the same size as the regular one
 (except for the increased sparsity).
+
+## Build with Vitis Xilinx toolchain:
+```shell
+cmake -G"Unix Makefiles" -DCMAKE_BUILD_TYPE="Release" DCMAKE_TOOLCHAIN_FILE="${PWD}/cmake/vitis_toolchain.cmake" -S="$PWD}" -B="${PWD}/build" -DRNNOISE_COMPILE_DEMO=OFF DRNNOISE_BAREMETAL=ON
+```

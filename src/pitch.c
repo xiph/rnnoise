@@ -144,7 +144,7 @@ static void celt_fir5(const opus_val16 *x,
 
 
 void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
-      int len, int C)
+      int len, int C, xcorr_kernel_cb xcorr_kernel_executor)
 {
    int i;
    opus_val32 ac[5];
@@ -179,7 +179,7 @@ void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
    }
 
    rnn_autocorr(x_lp, ac, NULL, 0,
-                  4, len>>1);
+                  4, len>>1, xcorr_kernel_executor);
 
    /* Noise floor -40 dB */
 #ifdef FIXED_POINT
@@ -214,7 +214,7 @@ void rnn_pitch_downsample(celt_sig *x[], opus_val16 *x_lp,
 }
 
 void rnn_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
-      opus_val32 *xcorr, int len, int max_pitch)
+      opus_val32 *xcorr, int len, int max_pitch, xcorr_kernel_cb xcorr_kernel_executor)
 {
 
 #if 0 /* This is a simple version of the pitch correlation that should work
@@ -250,7 +250,7 @@ void rnn_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
    for (i=0;i<max_pitch-3;i+=4)
    {
       opus_val32 sum[4]={0,0,0,0};
-      xcorr_kernel(_x, _y+i, sum, len);
+      xcorr_kernel_executor(_x, _y+i, sum, len);
       xcorr[i]=sum[0];
       xcorr[i+1]=sum[1];
       xcorr[i+2]=sum[2];
@@ -279,7 +279,7 @@ void rnn_pitch_xcorr(const opus_val16 *_x, const opus_val16 *_y,
 }
 
 void rnn_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
-                  int len, int max_pitch, int *pitch)
+                  int len, int max_pitch, int *pitch, xcorr_kernel_cb xcorr_kernel_executor)
 {
    int i, j;
    int lag;
@@ -329,7 +329,7 @@ void rnn_pitch_search(const opus_val16 *x_lp, opus_val16 *y,
 #ifdef FIXED_POINT
    maxcorr =
 #endif
-   rnn_pitch_xcorr(x_lp4, y_lp4, xcorr, len>>2, max_pitch>>2);
+   rnn_pitch_xcorr(x_lp4, y_lp4, xcorr, len>>2, max_pitch>>2,xcorr_kernel_executor);
 
    find_best_pitch(xcorr, y_lp4, len>>2, max_pitch>>2, best_pitch
 #ifdef FIXED_POINT
