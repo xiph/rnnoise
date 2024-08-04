@@ -161,8 +161,10 @@ static void rand_resp(float *a, float *b) {
 
 short speech16[SEQUENCE_LENGTH*FRAME_SIZE];
 short noise16[SEQUENCE_LENGTH*FRAME_SIZE];
+short fgnoise16[SEQUENCE_LENGTH*FRAME_SIZE];
 float x[SEQUENCE_LENGTH*FRAME_SIZE];
 float n[SEQUENCE_LENGTH*FRAME_SIZE];
+float fn[SEQUENCE_LENGTH*FRAME_SIZE];
 float xn[SEQUENCE_LENGTH*FRAME_SIZE];
 
     
@@ -173,11 +175,13 @@ int main(int argc, char **argv) {
   static const float b_hp[2] = {-2, 1};
   float a_noise[2] = {0};
   float b_noise[2] = {0};
+  float a_fgnoise[2] = {0};
+  float b_fgnoise[2] = {0};
   float a_sig[2] = {0};
   float b_sig[2] = {0};
-  float speech_gain = 1, noise_gain = 1;
-  FILE *f1, *f2, *fout;
-  long speech_length, noise_length;
+  float speech_gain = 1, noise_gain = 1, fgnoise_gain = 1;
+  FILE *f1, *f2, *f3, *fout;
+  long speech_length, noise_length, fgnoise_length;
   int maxCount;
   unsigned seed;
   DenoiseState *st;
@@ -190,33 +194,39 @@ int main(int argc, char **argv) {
   st = rnnoise_create(NULL);
   noisy = rnnoise_create(NULL);
   argv0 = argv[0];
-  while (argc>5) {
+  while (argc>6) {
     if (strcmp(argv[1], "-rir_list")==0) {
       rir_filename = argv[2];
       argv+=2;
       argc-=2;
     }
   }
-  if (argc!=5) {
-    fprintf(stderr, "usage: %s [-rir_list list] <speech> <noise> <output> <count>\n", argv0);
+  if (argc!=6) {
+    fprintf(stderr, "usage: %s [-rir_list list] <speech> <noise> <fg_noise> <output> <count>\n", argv0);
     return 1;
   }
   f1 = fopen(argv[1], "rb");
   f2 = fopen(argv[2], "rb");
-  fout = fopen(argv[3], "wb");
+  f3 = fopen(argv[3], "rb");
+  fout = fopen(argv[4], "wb");
 
   fseek(f1, 0, SEEK_END);
   speech_length = ftell(f1);
   fseek(f1, 0, SEEK_SET);
+  
   fseek(f2, 0, SEEK_END);
   noise_length = ftell(f2);
   fseek(f2, 0, SEEK_SET);
 
-  maxCount = atoi(argv[4]);
+  fseek(f3, 0, SEEK_END);
+  fgnoise_length = ftell(f3);
+  fseek(f3, 0, SEEK_SET);
+
+  maxCount = atoi(argv[5]);
   if (rir_filename) load_rir_list(rir_filename, &rirs);
   for (count=0;count<maxCount;count++) {
     int rir_id;
-    long speech_pos, noise_pos;
+    long speech_pos, noise_pos, fgnoise_pos;
     int start_pos=0;
     float E[SEQUENCE_LENGTH] = {0};
     float mem[2]={0};
@@ -227,18 +237,23 @@ int main(int argc, char **argv) {
     float Exp[NB_BANDS];
     float features[NB_FEATURES];
     float g[NB_BANDS];
-    float speech_rms, noise_rms;
+    float speech_rms, noise_rms, fgnoise_rms;
     if ((count%1000)==0) fprintf(stderr, "%d\r", count);
     speech_pos = (rand_lcg(&seed)*2.3283e-10)*speech_length;
     noise_pos = (rand_lcg(&seed)*2.3283e-10)*noise_length;
+    fgnoise_pos = (rand_lcg(&seed)*2.3283e-10)*fgnoise_length;
     if (speech_pos > speech_length-(long)sizeof(speech16)) speech_pos = speech_length-sizeof(speech16);
     if (noise_pos > noise_length-(long)sizeof(noise16)) noise_pos = noise_length-sizeof(noise16);
+    if (fgnoise_pos > fgnoise_length-(long)sizeof(fgnoise16)) fgnoise_pos = fgnoise_length-sizeof(fgnoise16);
     speech_pos -= speech_pos&1;
     noise_pos -= noise_pos&1;
+    fgnoise_pos -= fgnoise_pos&1;
     fseek(f1, speech_pos, SEEK_SET);
     fseek(f2, noise_pos, SEEK_SET);
+    fseek(f3, fgnoise_pos, SEEK_SET);
     fread(speech16, sizeof(speech16), 1, f1);
     fread(noise16, sizeof(noise16), 1, f2);
+    fread(fgnoise16, sizeof(fgnoise16), 1, f3);
     if (rand()%4) start_pos = 0;
     else start_pos = -(int)(1000*log(rand()/(float)RAND_MAX));
     start_pos = IMIN(start_pos, SEQUENCE_LENGTH*FRAME_SIZE);
@@ -246,9 +261,13 @@ int main(int argc, char **argv) {
 
     speech_gain = pow(10., (-40+(rand()%55))/20.);
     noise_gain = pow(10., (-30+(rand()%40))/20.);
-    if (rand()%10==0) noise_gain = 0;
+    fgnoise_gain = pow(10., (-30+(rand()%40))/20.);
+    if (rand()%8==0) noise_gain = 0;
+    if (rand()%8!=0) fgnoise_gain = 0;
     noise_gain *= speech_gain;
+    fgnoise_gain *= speech_gain;
     rand_resp(a_noise, b_noise);
+    rand_resp(a_fgnoise, b_fgnoise);
     rand_resp(a_sig, b_sig);
     lowpass = FREQ_SIZE * 3000./24000. * pow(50., rand()/(double)RAND_MAX);
     for (i=0;i<NB_BANDS;i++) {
@@ -265,6 +284,7 @@ int main(int argc, char **argv) {
         E[frame] += s*s;
         x[frame*FRAME_SIZE+j] = speech16[frame*FRAME_SIZE+j];
         n[frame*FRAME_SIZE+j] = noise16[frame*FRAME_SIZE+j];
+        fn[frame*FRAME_SIZE+j] = fgnoise16[frame*FRAME_SIZE+j];
       }
     }
 
@@ -276,13 +296,20 @@ int main(int argc, char **argv) {
     rnn_biquad(n, mem, n, b_hp, a_hp, SEQUENCE_LENGTH*FRAME_SIZE);
     RNN_CLEAR(mem, 2);
     rnn_biquad(n, mem, n, b_noise, a_noise, SEQUENCE_LENGTH*FRAME_SIZE);
+    RNN_CLEAR(mem, 2);
+    rnn_biquad(fn, mem, fn, b_hp, a_hp, SEQUENCE_LENGTH*FRAME_SIZE);
+    RNN_CLEAR(mem, 2);
+    rnn_biquad(fn, mem, fn, b_fgnoise, a_fgnoise, SEQUENCE_LENGTH*FRAME_SIZE);
 
-    speech_rms = noise_rms = 0;
+    speech_rms = noise_rms = fgnoise_rms = 0;
     for (j=start_pos;j<SEQUENCE_SAMPLES;j++) {
       speech_rms += x[j]*x[j];
     }
     for (j=0;j<SEQUENCE_SAMPLES;j++) {
       noise_rms += n[j]*n[j];
+    }
+    for (j=0;j<SEQUENCE_SAMPLES;j++) {
+      fgnoise_rms += fn[j]*fn[j];
     }
     if (SEQUENCE_SAMPLES-start_pos > 10*FRAME_SIZE) {
       speech_rms = sqrt(speech_rms/(SEQUENCE_SAMPLES-start_pos));
@@ -291,13 +318,16 @@ int main(int argc, char **argv) {
     }
     if (speech_rms < 300) speech_rms = 300;
     noise_rms = sqrt(noise_rms/SEQUENCE_SAMPLES);
+    fgnoise_rms = sqrt(fgnoise_rms/SEQUENCE_SAMPLES);
 
     speech_gain *= 3000.f/(1+speech_rms);
     noise_gain *= 3000.f/(1+noise_rms);
+    fgnoise_gain *= 3000.f/(1+fgnoise_rms);
     for (j=0;j<SEQUENCE_SAMPLES;j++) {
       x[j] *= speech_gain;
       n[j] *= noise_gain;
-      xn[j] = x[j] + n[j];
+      fn[j] *= fgnoise_gain;
+      xn[j] = x[j] + n[j] + fn[j];
     }
     if (rir_filename && rand()%2==0) {
       rir_id = rand()%rirs.nb_rirs;
@@ -322,7 +352,7 @@ int main(int argc, char **argv) {
         if (g[i] > 1) g[i] = 1;
         if (silence || i > band_lp) g[i] = -1;
         if (Ey[i] < 5e-2 && Ex[i] < 5e-2) g[i] = -1;
-        if (vad==0 && noise_gain==0) g[i] = -1;
+        if (vad==0 && noise_gain==0 && fgnoise_gain==0) g[i] = -1;
       }
 #if 0
       {
@@ -341,6 +371,7 @@ int main(int argc, char **argv) {
 
   fclose(f1);
   fclose(f2);
+  fclose(f3);
   fclose(fout);
   return 0;
 }
