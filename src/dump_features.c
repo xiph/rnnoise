@@ -152,11 +152,26 @@ static float uni_rand() {
   return rand()/(double)RAND_MAX-.5;
 }
 
+static void rand_filt(float *a) {
+  if (uni_rand()>0) {
+    float r, theta;
+    r = .8*rand()/(double)RAND_MAX;
+    theta = rand()/(double)RAND_MAX;
+    theta = M_PI*theta*theta;
+    a[0] = -2*r*cos(theta);
+    a[1] = r*r;
+  } else {
+    float r0,r1;
+    r0 = 1.6*uni_rand();
+    r1 = 1.6*uni_rand();
+    a[0] = -r0-r1;
+    a[1] = r0*r1;
+  }
+}
+
 static void rand_resp(float *a, float *b) {
-  a[0] = .75*uni_rand();
-  a[1] = .75*uni_rand();
-  b[0] = .75*uni_rand();
-  b[1] = .75*uni_rand();
+  rand_filt(a);
+  rand_filt(b);
 }
 
 short speech16[SEQUENCE_LENGTH*FRAME_SIZE];
