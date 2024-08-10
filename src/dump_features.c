@@ -274,11 +274,15 @@ int main(int argc, char **argv) {
     start_pos = IMIN(start_pos, SEQUENCE_LENGTH*FRAME_SIZE);
     RNN_CLEAR(speech16, start_pos);
 
-    speech_gain = pow(10., (-40+(rand()%55))/20.);
-    noise_gain = pow(10., (-30+(rand()%40))/20.);
-    fgnoise_gain = pow(10., (-30+(rand()%40))/20.);
+    speech_gain = pow(10., (-40+(55.f*rand()/(float)RAND_MAX))/20.);
+    noise_gain = pow(10., (-30+(40.f*rand()/(float)RAND_MAX))/20.);
+    fgnoise_gain = pow(10., (-30+(40.f*rand()/(float)RAND_MAX))/20.);
     if (rand()%8==0) noise_gain = 0;
     if (rand()%8!=0) fgnoise_gain = 0;
+    if (rand()%12==0) {
+      noise_gain *= 0.03;
+      fgnoise_gain *= 0.03;
+    }
     noise_gain *= speech_gain;
     fgnoise_gain *= speech_gain;
     rand_resp(a_noise, b_noise);
