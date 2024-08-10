@@ -182,7 +182,92 @@ float n[SEQUENCE_LENGTH*FRAME_SIZE];
 float fn[SEQUENCE_LENGTH*FRAME_SIZE];
 float xn[SEQUENCE_LENGTH*FRAME_SIZE];
 
-    
+#define P00 0.99f
+#define P01 0.01f
+#define P10 0.01f
+#define P11 0.99f
+#define LOGIT_SCALE 0.5f
+
+static void viterbi_vad(float *x, const float *E, int *vad) {
+  int i, active;
+  float Enoise, Esig;
+  int back[SEQUENCE_LENGTH][2];
+  float curr;
+  Enoise = Esig = 1e-30;
+  for (i=0;i<SEQUENCE_LENGTH;i++) {
+    Esig += E[i]*E[i];
+  }
+  Esig = sqrt(Esig/SEQUENCE_LENGTH);
+  for (i=0;i<SEQUENCE_LENGTH;i++) {
+    Enoise += 1.f/(1e-8*Esig*Esig + E[i]*E[i]);
+  }
+  Enoise = 1.f/sqrt(Enoise/SEQUENCE_LENGTH);
+  curr = 0.5;
+  for (i=0;i<SEQUENCE_LENGTH;i++) {
+    float p0, pspeech, pnoise;
+    float prior;
+    p0 = (log(1e-15+E[i]) - log(Enoise))/(.01 + log(Esig) - log(Enoise));
+    p0 = MIN16(.9f, MAX16(.1f, p0));
+    p0 = 1.f/(1.f + pow((1.f-p0)/p0, LOGIT_SCALE));
+    if (curr*P11 > (1-curr)*P01) {
+      back[i][1] = 1;
+      prior = curr*P11;
+    } else {
+      back[i][1] = 0;
+      prior = (1-curr)*P01;
+    }
+    pspeech = prior*p0;
+
+    if ((1-curr)*P00 > curr*P10) {
+      back[i][0] = 0;
+      prior = (1-curr)*P00;
+    } else {
+      back[i][0] = 1;
+      prior = curr*P10;
+    }
+    pnoise = prior*(1-p0);
+    curr = pspeech / (pspeech + pnoise);
+    /*printf("%f ", curr);*/
+  }
+  vad[SEQUENCE_LENGTH-1] = curr > .5;
+  for (i=SEQUENCE_LENGTH-2;i>=0;i--) {
+    if (vad[i+1]) {
+      vad[i] = back[i+1][1];
+    } else {
+      vad[i] = back[i+1][0];
+    }
+  }
+  active = vad[0];
+  for (i=0;i<SEQUENCE_LENGTH-1;i++) {
+    if (vad[i+1]) vad[i] = 1;
+  }
+  for (i=SEQUENCE_LENGTH-1;i>=1;i--) {
+    if (vad[i-1]) vad[i] = 1;
+  }
+  for (i=0;i<SEQUENCE_LENGTH;i++) {
+    if (!active) {
+      if (i<SEQUENCE_LENGTH-1 && vad[i+1]) {
+        int j;
+        for (j=0;j<FRAME_SIZE;j++) x[i*FRAME_SIZE+j] = j/(float)FRAME_SIZE;
+        active = 1;
+      } else {
+        RNN_CLEAR(&x[i*FRAME_SIZE], FRAME_SIZE);
+      }
+    } else {
+      if (i>=1 && vad[i]==0 && vad[i-1]==0) {
+        int j;
+        for (j=0;j<FRAME_SIZE;j++) x[i*FRAME_SIZE+j] = 1.f - j/(float)FRAME_SIZE;
+        active = 0;
+      }
+    }
+  }
+  /*printf("\n");
+  for (i=0;i<SEQUENCE_LENGTH;i++) {
+    printf("%d ", vad[i]);
+  }
+  printf("\n");*/
+}
+
 int main(int argc, char **argv) {
   int i, j;
   int count=0;
@@ -241,6 +326,7 @@ int main(int argc, char **argv) {
   if (rir_filename) load_rir_list(rir_filename, &rirs);
   for (count=0;count<maxCount;count++) {
     int rir_id;
+    int vad[SEQUENCE_LENGTH];
     long speech_pos, noise_pos, fgnoise_pos;
     int start_pos=0;
     float E[SEQUENCE_LENGTH] = {0};
@@ -306,6 +392,7 @@ int main(int argc, char **argv) {
         fn[frame*FRAME_SIZE+j] = fgnoise16[frame*FRAME_SIZE+j];
       }
     }
+    viterbi_vad(x, E, vad);
 
     RNN_CLEAR(mem, 2);
     rnn_biquad(x, mem, x, b_hp, a_hp, SEQUENCE_LENGTH*FRAME_SIZE);
@@ -354,24 +441,17 @@ int main(int argc, char **argv) {
       rir_filter_sequence(&rirs, xn, rir_id, 0);
     }
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
-      float vad;
-      float E0, Eprev, Enext;
+      float vad_target;
       rnn_frame_analysis(st, Y, Ey, &x[frame*FRAME_SIZE]);
       silence = rnn_compute_frame_features(noisy, X, P, Ex, Ep, Exp, features, &xn[frame*FRAME_SIZE]);
       /*rnn_pitch_filter(X, P, Ex, Ep, Exp, g);*/
-      E0 = E[frame];
-      Eprev = E[IMAX(0, frame-1)];
-      Enext = E[IMIN(SEQUENCE_LENGTH-1, frame+1)];
-      if (E0 > 1e9f) vad = 1;
-      else if (E0 > 1e8f && Eprev > 1e8f && Enext > 1e8f) vad = 1;
-      else if (E0 < 1e7f && Eprev < 1e7f && Enext < 1e7f) vad = 0;
-      else vad = .5;
+      vad_target = vad[frame];
       for (i=0;i<NB_BANDS;i++) {
         g[i] = sqrt((Ey[i]+1e-3)/(Ex[i]+1e-3));
         if (g[i] > 1) g[i] = 1;
         if (silence || i > band_lp) g[i] = -1;
         if (Ey[i] < 5e-2 && Ex[i] < 5e-2) g[i] = -1;
-        if (vad==0 && noise_gain==0 && fgnoise_gain==0) g[i] = -1;
+        if (vad_target==0 && noise_gain==0 && fgnoise_gain==0) g[i] = -1;
       }
 #if 0
       {
@@ -383,7 +463,7 @@ int main(int argc, char **argv) {
 #if 1
       fwrite(features, sizeof(float), NB_FEATURES, fout);
       fwrite(g, sizeof(float), NB_BANDS, fout);
-      fwrite(&vad, sizeof(float), 1, fout);
+      fwrite(&vad_target, sizeof(float), 1, fout);
 #endif
     }
   }
