@@ -440,6 +440,18 @@ int main(int argc, char **argv) {
       rir_filter_sequence(&rirs, x, rir_id, 1);
       rir_filter_sequence(&rirs, xn, rir_id, 0);
     }
+    if (rand()%4==0) {
+      /* Apply input clipping to 0 dBFS (don't clip target). */
+      for (j=0;j<SEQUENCE_SAMPLES;j++) {
+        xn[j] = MIN16(32767.f, MAX16(-32767.f, xn[j]));
+      }
+    }
+    if (rand()%2==0) {
+      /* Apply 16-bit quantization. */
+      for (j=0;j<SEQUENCE_SAMPLES;j++) {
+        xn[j] = floor(.5f + xn[j]);
+      }
+    }
     for (frame=0;frame<SEQUENCE_LENGTH;frame++) {
       float vad_target;
       rnn_frame_analysis(st, Y, Ey, &x[frame*FRAME_SIZE]);
