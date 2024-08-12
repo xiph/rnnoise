@@ -55,7 +55,7 @@ training_group.add_argument('--epochs', type=int, help='number of training epoch
 training_group.add_argument('--sequence-length', type=int, help='sequence length, default: 2000', default=2000)
 training_group.add_argument('--lr-decay', type=float, help='learning rate decay factor, default: 5e-5', default=5e-5)
 training_group.add_argument('--initial-checkpoint', type=str, help='initial checkpoint to start training from, default: None', default=None)
-training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.1667)', default=0.1667)
+training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.25)', default=0.25)
 
 args = parser.parse_args()
 
@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
                 loss.backward()
                 optimizer.step()
-                model.sparsify()
+                #model.sparsify()
 
                 scheduler.step()
 
