@@ -188,8 +188,8 @@ float xn[SEQUENCE_LENGTH*FRAME_SIZE];
 #define P11 0.99f
 #define LOGIT_SCALE 0.5f
 
-static void viterbi_vad(float *x, const float *E, int *vad) {
-  int i, active;
+static void viterbi_vad(const float *E, int *vad) {
+  int i;
   float Enoise, Esig;
   int back[SEQUENCE_LENGTH][2];
   float curr;
@@ -237,13 +237,17 @@ static void viterbi_vad(float *x, const float *E, int *vad) {
       vad[i] = back[i+1][0];
     }
   }
-  active = vad[0];
   for (i=0;i<SEQUENCE_LENGTH-1;i++) {
     if (vad[i+1]) vad[i] = 1;
   }
   for (i=SEQUENCE_LENGTH-1;i>=1;i--) {
     if (vad[i-1]) vad[i] = 1;
   }
+}
+
+static void clear_vad(float *x, int *vad) {
+  int i;
+  int active = vad[0];
   for (i=0;i<SEQUENCE_LENGTH;i++) {
     if (!active) {
       if (i<SEQUENCE_LENGTH-1 && vad[i+1]) {
@@ -266,6 +270,18 @@ static void viterbi_vad(float *x, const float *E, int *vad) {
     printf("%d ", vad[i]);
   }
   printf("\n");*/
+}
+
+static float weighted_rms(float *x) {
+  int i;
+  float tmp[SEQUENCE_SAMPLES];
+  float weighting_b[2] = {-2.f, 1.f};
+  float weighting_a[2] = {-1.89f, .895f};
+  float mem[2] = {0};
+  float mse = 1e-15f;
+  rnn_biquad(tmp, mem, x, weighting_b, weighting_a, SEQUENCE_SAMPLES);
+  for (i=0;i<SEQUENCE_SAMPLES;i++) mse += tmp[i]*tmp[i];
+  return 0.9506*sqrt(mse/SEQUENCE_SAMPLES);
 }
 
 int main(int argc, char **argv) {
@@ -358,11 +374,10 @@ int main(int argc, char **argv) {
     if (rand()%4) start_pos = 0;
     else start_pos = -(int)(1000*log(rand()/(float)RAND_MAX));
     start_pos = IMIN(start_pos, SEQUENCE_LENGTH*FRAME_SIZE);
-    RNN_CLEAR(speech16, start_pos);
 
-    speech_gain = pow(10., (-40+(55.f*rand()/(float)RAND_MAX))/20.);
-    noise_gain = pow(10., (-30+(40.f*rand()/(float)RAND_MAX))/20.);
-    fgnoise_gain = pow(10., (-30+(40.f*rand()/(float)RAND_MAX))/20.);
+    speech_gain = pow(10., (-45+(50.f*rand()/(float)RAND_MAX))/20.);
+    noise_gain = pow(10., (-30+(45.f*rand()/(float)RAND_MAX))/20.);
+    fgnoise_gain = pow(10., (-30+(45.f*rand()/(float)RAND_MAX))/20.);
     if (rand()%8==0) noise_gain = 0;
     if (rand()%8!=0) fgnoise_gain = 0;
     if (rand()%12==0) {
@@ -392,7 +407,7 @@ int main(int argc, char **argv) {
         fn[frame*FRAME_SIZE+j] = fgnoise16[frame*FRAME_SIZE+j];
       }
     }
-    viterbi_vad(x, E, vad);
+    viterbi_vad(E, vad);
 
     RNN_CLEAR(mem, 2);
     rnn_biquad(x, mem, x, b_hp, a_hp, SEQUENCE_LENGTH*FRAME_SIZE);
@@ -407,24 +422,12 @@ int main(int argc, char **argv) {
     RNN_CLEAR(mem, 2);
     rnn_biquad(fn, mem, fn, b_fgnoise, a_fgnoise, SEQUENCE_LENGTH*FRAME_SIZE);
 
-    speech_rms = noise_rms = fgnoise_rms = 0;
-    for (j=start_pos;j<SEQUENCE_SAMPLES;j++) {
-      speech_rms += x[j]*x[j];
-    }
-    for (j=0;j<SEQUENCE_SAMPLES;j++) {
-      noise_rms += n[j]*n[j];
-    }
-    for (j=0;j<SEQUENCE_SAMPLES;j++) {
-      fgnoise_rms += fn[j]*fn[j];
-    }
-    if (SEQUENCE_SAMPLES-start_pos > 10*FRAME_SIZE) {
-      speech_rms = sqrt(speech_rms/(SEQUENCE_SAMPLES-start_pos));
-    } else {
-      speech_rms = 3000;
-    }
-    if (speech_rms < 300) speech_rms = 300;
-    noise_rms = sqrt(noise_rms/SEQUENCE_SAMPLES);
-    fgnoise_rms = sqrt(fgnoise_rms/SEQUENCE_SAMPLES);
+    speech_rms = weighted_rms(x);
+    noise_rms = weighted_rms(n);
+    fgnoise_rms = weighted_rms(fn);
+
+    RNN_CLEAR(vad, start_pos/FRAME_SIZE);
+    clear_vad(x, vad);
 
     speech_gain *= 3000.f/(1+speech_rms);
     noise_gain *= 3000.f/(1+noise_rms);
