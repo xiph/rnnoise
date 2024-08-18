@@ -152,18 +152,26 @@ static float uni_rand() {
   return rand()/(double)RAND_MAX-.5;
 }
 
+static float randf(float f) {
+  return f*rand()/(double)RAND_MAX;
+}
+
 static void rand_filt(float *a) {
-  if (uni_rand()>0) {
+  if (rand()%3!=0) {
+    a[0] = a[1] = 0;
+  }
+  else if (uni_rand()>0) {
     float r, theta;
-    r = .8*rand()/(double)RAND_MAX;
+    r = rand()/(double)RAND_MAX;
+    r = .7*r*r;
     theta = rand()/(double)RAND_MAX;
     theta = M_PI*theta*theta;
     a[0] = -2*r*cos(theta);
     a[1] = r*r;
   } else {
     float r0,r1;
-    r0 = 1.6*uni_rand();
-    r1 = 1.6*uni_rand();
+    r0 = 1.4*uni_rand();
+    r1 = 1.4*uni_rand();
     a[0] = -r0-r1;
     a[1] = r0*r1;
   }
@@ -375,9 +383,9 @@ int main(int argc, char **argv) {
     else start_pos = -(int)(1000*log(rand()/(float)RAND_MAX));
     start_pos = IMIN(start_pos, SEQUENCE_LENGTH*FRAME_SIZE);
 
-    speech_gain = pow(10., (-45+(50.f*rand()/(float)RAND_MAX))/20.);
-    noise_gain = pow(10., (-30+(45.f*rand()/(float)RAND_MAX))/20.);
-    fgnoise_gain = pow(10., (-30+(45.f*rand()/(float)RAND_MAX))/20.);
+    speech_gain = pow(10., (-45+randf(45.f)+randf(10.f))/20.);
+    noise_gain = pow(10., (-30+randf(40.f)+randf(10.f))/20.);
+    fgnoise_gain = pow(10., (-30+randf(40.f)+randf(10.f))/20.);
     if (rand()%8==0) noise_gain = 0;
     if (rand()%8!=0) fgnoise_gain = 0;
     if (rand()%12==0) {
