@@ -35,9 +35,9 @@ import os
 sys.path.append(os.path.join(os.path.split(__file__)[0], '..'))
 from sparsification import GRUSparsifier
 
-sparsify_start     = 2500
-sparsify_stop      = 8000
-sparsify_interval  = 50
+sparsify_start     = 6000
+sparsify_stop      = 20000
+sparsify_interval  = 100
 sparsify_exponent  = 3
 
 sparse_params1 = {
