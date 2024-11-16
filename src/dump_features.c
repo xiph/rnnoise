@@ -260,7 +260,7 @@ static void clear_vad(float *x, int *vad) {
     if (!active) {
       if (i<SEQUENCE_LENGTH-1 && vad[i+1]) {
         int j;
-        for (j=0;j<FRAME_SIZE;j++) x[i*FRAME_SIZE+j] = j/(float)FRAME_SIZE;
+        for (j=0;j<FRAME_SIZE;j++) x[i*FRAME_SIZE+j] *= j/(float)FRAME_SIZE;
         active = 1;
       } else {
         RNN_CLEAR(&x[i*FRAME_SIZE], FRAME_SIZE);
@@ -268,7 +268,7 @@ static void clear_vad(float *x, int *vad) {
     } else {
       if (i>=1 && vad[i]==0 && vad[i-1]==0) {
         int j;
-        for (j=0;j<FRAME_SIZE;j++) x[i*FRAME_SIZE+j] = 1.f - j/(float)FRAME_SIZE;
+        for (j=0;j<FRAME_SIZE;j++) x[i*FRAME_SIZE+j] *= 1.f - j/(float)FRAME_SIZE;
         active = 0;
       }
     }
