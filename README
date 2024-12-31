@@ -39,7 +39,7 @@ is a convenience copy.
 
 The models distributed with RNNoise are now trained using only the publicly
 available datasets listed below and using the training precedure described
-here. Exact results will still depend on the the exact mix us data used,
+here. Exact results will still depend on the the exact mix of data used,
 on how long the training is performed and on the various random seeds involved.
 
 To train an RNNoise model, you need both clean speech data, and noise data.
