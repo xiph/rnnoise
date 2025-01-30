@@ -147,10 +147,10 @@ if __name__ == '__main__':
                 gain = gain[:,3:-1,:]
                 vad = vad[:,3:-1,:]
                 target_gain = torch.clamp(gain, min=0)
-                target_gain = target_gain*(torch.tanh(5*target_gain)**2)
+                target_gain = target_gain*(torch.tanh(8*target_gain)**2)
 
                 e = pred_gain**gamma - target_gain**gamma
-                gain_loss = torch.mean((1+1.*vad)*mask(gain)*(e**2))
+                gain_loss = torch.mean((1+5.*vad)*mask(gain)*(e**2))
                 #vad_loss = torch.mean(torch.abs(2*vad-1)*(vad-pred_vad)**2)
                 vad_loss = torch.mean(torch.abs(2*vad-1)*(-vad*torch.log(.01+pred_vad) - (1-vad)*torch.log(1.01-pred_vad)))
                 loss = gain_loss + .001*vad_loss

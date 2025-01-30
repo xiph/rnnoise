@@ -384,8 +384,8 @@ int main(int argc, char **argv) {
     start_pos = IMIN(start_pos, SEQUENCE_LENGTH*FRAME_SIZE);
 
     speech_gain = pow(10., (-45+randf(45.f)+randf(10.f))/20.);
-    noise_gain = pow(10., (-30+randf(40.f)+randf(10.f))/20.);
-    fgnoise_gain = pow(10., (-30+randf(40.f)+randf(10.f))/20.);
+    noise_gain = pow(10., (-30+randf(40.f)+randf(15.f))/20.);
+    fgnoise_gain = pow(10., (-30+randf(40.f)+randf(15.f))/20.);
     if (rand()%8==0) noise_gain = 0;
     if (rand()%8!=0) fgnoise_gain = 0;
     if (rand()%12==0) {

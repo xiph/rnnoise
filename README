@@ -52,16 +52,21 @@ For noise data, we suggest the background_noise.sw and foreground_noise.sw
 The foreground_noise.sw file contains noise signals that are meant to be added
 to the background noise (e.g. keyboard sounds). Optionally, the foreground noise
 file can even be denoised with a traditional denoiser (e.g. libspeexdsp) to
-keep only the transient components.
+keep only the transient components. For background noise, the data from the
+original RNNoise noise collection have now been sufficiently filtered to
+provide good results -- either alone or in combination with the
+background_noise.sw file. The dataset can be downloaded (updated Jan 30th 2025)
+from: https://media.xiph.org/rnnoise/rnnoise_contributions.tar.gz
 
-The first step is to take the speech and noise, and mix them in a variety of ways
-to simulate real life conditions (including pauses, filtering and more).
+The first step is to take the speech and noise, and mix them in a variety of
+ways to simulate real life conditions (including pauses, filtering and more).
 Assuming the files are called speech.pcm and noise.pcm, start by generating
 the training feature data with:
 
 % ./dump_features speech.pcm background_noise.pcm foreground_noise.pcm features.f32 <count>
 where <count> is the number of sequences to process. The number of sequences
-should be at least 10000, but the more the better (200000 or more is recommended).
+should be at least 10000, but the more the better (200000 or more is
+recommended).
 
 Optionally, training can also simulate reverberation, in which case room impulse
 responses (RIR) are also needed. Limited RIR data is available at:
