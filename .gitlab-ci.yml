@@ -8,10 +8,10 @@ default:
   stage: build
   before_script:
     - apt-get update &&
-      apt-get install -y git make ${INSTALL_COMPILER} automake autoconf libtool ${INSTALL_EXTRA}
+      apt-get install -y git make ${INSTALL_COMPILER} automake autoconf libtool zip ${INSTALL_EXTRA}
   script:
     - ./autogen.sh
-    - ./configure ${CONFIG_FLAGS} || cat config.log
+    - ./configure --enable-x86-rtcd ${CONFIG_FLAGS} || cat config.log
     - make
     - make check
   variables:
