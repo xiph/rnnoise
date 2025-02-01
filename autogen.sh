@@ -5,7 +5,9 @@ set -e
 srcdir=`dirname $0`
 test -n "$srcdir" && cd "$srcdir"
 
-./download_model.sh
+if [ "x--no-download" != "x$1" ] ; then
+    ./download_model.sh
+fi
 
 echo "Updating build configuration files for rnnoise, please wait...."
 

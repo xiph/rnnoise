@@ -19,8 +19,10 @@ Optionally:
 It is recommended to either set -march= in the CFLAGS to an architecture
 with AVX2 support or to add --enable-x86-rtcd to the configure script
 so that AVX2 (or SSE4.1) can at least be used as an option.
-Note that the autogen.sh script will automatically download the model files
-from the Xiph.Org servers, since those are too large to put in Git.
+Note that unless the --no-downoad option is used, the autogen.sh
+script will automatically download and unpack the model files and
+source code from the Xiph.Org servers, since those are too large to
+put in Git, .
 
 While it is meant to be used as a library, a simple command-line tool is
 provided as an example. It operates on RAW 16-bit (machine endian) mono
