@@ -27,5 +27,5 @@ else
 fi
 
 
-tar xvomf $model
+tar xzvomf $model
 
