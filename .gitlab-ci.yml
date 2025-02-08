@@ -30,6 +30,18 @@ autoconf-clang:
     INSTALL_COMPILER: clang
     CC: clang
 
+autoconf-mingw:
+  extends: .autoconf
+  script:
+    - mkdir build-mingw
+    - ./autogen.sh
+    - (cd build-mingw && ../configure ${CONFIG_FLAGS})
+    - (cd build-mingw && make)
+  variables:
+    CONFIG_FLAGS: --disable-shared --host=x86_64-pc-linux-gnu
+    INSTALL_COMPILER: gcc-mingw-w64
+    CC: x86_64-w64-mingw32-gcc
+
 enable-assertions:
   extends: .autoconf
   variables:
