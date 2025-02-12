@@ -1,0 +1,18 @@
+# Process with doxygen to generate API documentation
+
+PROJECT_NAME           = rnnoise
+PROJECT_NUMBER         = 0.2-15-g751dc33
+PROJECT_BRIEF          = "RNN-based noise suppressor."
+INPUT                  = ../include/rnnoise.h
+OPTIMIZE_OUTPUT_FOR_C  = YES
+
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+
+JAVADOC_AUTOBRIEF      = YES
+SORT_MEMBER_DOCS       = NO
+
+HAVE_DOT               = no

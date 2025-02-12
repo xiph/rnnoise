@@ -1,0 +1,13 @@
+# rnnoise uninstalled pkg-config file
+
+prefix=
+exec_prefix=
+libdir=${pcfiledir}/.libs
+includedir=${pcfiledir}/./include
+
+Name: rnnoise uninstalled
+Description: RNN-based noise suppression (not installed)
+Version: 0.2-15-g751dc33
+Conflicts:
+Libs: ${libdir}/librnnoise.la 
+Cflags: -I${includedir}

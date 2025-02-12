@@ -1,0 +1,14 @@
+# rnnoise installed pkg-config file
+
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: rnnoise
+Description: RNN-based noise suppression
+Version: 0.2-15-g751dc33
+Conflicts:
+Libs: -L${libdir} -lrnnoise
+Libs.private: 
+Cflags: -I${includedir}/
