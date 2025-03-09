@@ -168,6 +168,11 @@ typedef struct {
   __m128i lo;
   __m128i hi;
 } mm256i_emu;
+
+#ifndef __AVX__
+typedef long long __m256i __attribute__((__vector_size__(32), __aligned__(32)));
+#endif
+
 typedef __m256i real_m256i;
 #define __m256i mm256i_emu
 
@@ -237,6 +242,8 @@ static inline mm256i_emu mm256_madd_epi16(mm256i_emu a, mm256i_emu b) {
 }
 #define _mm256_madd_epi16(a,b) mm256_madd_epi16(a,b)
 
+#if defined(__AVX2__) || defined(__SSSE3__)
+
 static inline mm256i_emu mm256_maddubs_epi16(mm256i_emu a, mm256i_emu b) {
   mm256i_emu ret;
   ret.lo = _mm_maddubs_epi16(a.lo, b.lo);
@@ -245,7 +252,7 @@ static inline mm256i_emu mm256_maddubs_epi16(mm256i_emu a, mm256i_emu b) {
 }
 #define _mm256_maddubs_epi16(a,b) mm256_maddubs_epi16(a,b)
 
-
+#endif
 
 /* Emulating the conversion functions is tricky because they use __m256i but are defined in AVX.
    So we need to make a special when only AVX is available. */
