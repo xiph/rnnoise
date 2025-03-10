@@ -56,7 +56,7 @@ librnnoise_la_LDFLAGS = -no-undefined \
 
 noinst_PROGRAMS = dump_features dump_weights_blob
 if OP_ENABLE_EXAMPLES
-noinst_PROGRAMS += examples/rnnoise_demo
+noinst_PROGRAMS += examples/rnnoise_demo examples/rnnoise_pipe
 endif
 
 examples_rnnoise_demo_SOURCES = examples/rnnoise_demo.c
@@ -168,3 +168,24 @@ $(SSE4_1_OBJ): CFLAGS += $(OPUS_X86_SSE4_1_CFLAGS)
 AVX2_OBJ = $(RNNOISE_SOURCES_AVX2:.c=.lo)
 $(AVX2_OBJ): CFLAGS += $(OPUS_X86_AVX2_CFLAGS)
 endif
+
+rnnoise_pipe_SOURCES = examples/rnnoise_pipe.c
+rnnoise_pipe_LDADD = librnnoise.la
+
+# Add a statically linked version of rnnoise_pipe for portability
+noinst_PROGRAMS += rnnoise_pipe_static
+
+rnnoise_pipe_static_SOURCES = examples/rnnoise_pipe.c
+rnnoise_pipe_static_LDADD = librnnoise.la
+rnnoise_pipe_static_LDFLAGS = -static
+
+# Add a target to create a portable package
+portable-package: rnnoise_pipe_static
+	mkdir -p portable_rnnoise_pipe
+	cp rnnoise_pipe_static portable_rnnoise_pipe/rnnoise_pipe
+	cp $(top_srcdir)/README portable_rnnoise_pipe/
+	cp $(top_srcdir)/COPYING portable_rnnoise_pipe/
+	tar -czf portable_rnnoise_pipe.tar.gz portable_rnnoise_pipe
+	rm -rf portable_rnnoise_pipe
+
+.PHONY: portable-package
