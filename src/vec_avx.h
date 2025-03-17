@@ -168,8 +168,8 @@ typedef struct {
   __m128i lo;
   __m128i hi;
 } mm256i_emu;
-typedef __m256i real_m256i;
 #define __m256i mm256i_emu
+typedef __m256i real_m256i;
 
 static inline mm256i_emu mm256_setzero_si256(void) {
   mm256i_emu ret;
