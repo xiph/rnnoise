@@ -9,12 +9,16 @@ https://arxiv.org/pdf/1709.08243.pdf
 An interactive demo of version 0.1 is available at: https://jmvalin.ca/demo/rnnoise/
 
 To compile, just type:
+
 % ./autogen.sh
 % ./configure
 % make
 
 Optionally:
 % make install
+
+If you have some errors in process of compiling of this project, try to install libtool: 
+sudo apt install libtool
 
 It is recommended to either set -march= in the CFLAGS to an architecture
 with AVX2 support or to add --enable-x86-rtcd to the configure script
