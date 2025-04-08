@@ -45,33 +45,49 @@
 
 void write_weights(const WeightArray *list, FILE *fout)
 {
-  int i=0;
-  unsigned char zeros[WEIGHT_BLOCK_SIZE] = {0};
-  while (list[i].name != NULL) {
-    WeightHead h;
-    if (strlen(list[i].name) >= sizeof(h.name) - 1) {
-      printf("[write_weights] warning: name %s too long\n", list[i].name);
-    }
-    memcpy(h.head, "DNNw", 4);
-    h.version = WEIGHT_BLOB_VERSION;
-    h.type = list[i].type;
-    h.size = list[i].size;
-    h.block_size = (h.size+WEIGHT_BLOCK_SIZE-1)/WEIGHT_BLOCK_SIZE*WEIGHT_BLOCK_SIZE;
-    RNN_CLEAR(h.name, sizeof(h.name));
-    strncpy(h.name, list[i].name, sizeof(h.name));
-    h.name[sizeof(h.name)-1] = 0;
-    celt_assert(sizeof(h) == WEIGHT_BLOCK_SIZE);
-    fwrite(&h, 1, WEIGHT_BLOCK_SIZE, fout);
-    fwrite(list[i].data, 1, h.size, fout);
-    fwrite(zeros, 1, h.block_size-h.size, fout);
-    i++;
-  }
+	unsigned char zeros[WEIGHT_BLOCK_SIZE] = {0};
+
+	for(int i = 0; list[i].name != NULL; i++)
+	{
+		const WeightArray *arr = &list[i];
+		WeightHead head;
+
+		printf("## Writing: %s, arr->type: %d, arr->size: %d\n", arr->name, arr->type, arr->size);
+
+		// Write magic bit
+		memcpy(head.head, "DNNw", 4);
+		head.version = WEIGHT_BLOB_VERSION;
+		head.type = arr->type;
+		head.size = arr->size;
+		head.block_size = (arr->size + WEIGHT_BLOCK_SIZE - 1) / WEIGHT_BLOCK_SIZE * WEIGHT_BLOCK_SIZE;
+
+		memset(head.name, 0, sizeof(head.name));
+		strncpy(head.name, arr->name, sizeof(head.name) - 1);
+		head.name[sizeof(head.name) - 1] = (char *)NULL;
+
+		// Check if Head Size is wrong
+		if(sizeof(head) != WEIGHT_BLOCK_SIZE)
+		{
+			printf("ERR: Header Size is Wrong!! - [%zu]\n", sizeof(head));
+			continue;
+		}
+
+		// Write Header to File
+		fwrite(&head, 1, WEIGHT_BLOCK_SIZE, fout);
+		// Write Data to File
+		fwrite(arr->data, 1, arr->size, fout);
+		// Fill 0 to empty padding
+		fwrite(zeros, 1, head.block_size - arr->size, fout);
+
+		printf("## Wrote: %s, head->type: %d, head->size: %d, head->block_size: %d\n", head.name, head.type, head.size, head.block_size);
+	}
 }
 
 int main(void)
 {
-  FILE *fout = fopen("weights_blob.bin", "w");
-  write_weights(rnnoise_arrays, fout);
-  fclose(fout);
-  return 0;
+	FILE *fout = fopen("weights_blob.bin", "wb");
+	write_weights(rnnoise_arrays, fout);
+
+	fclose(fout);
+	return 0;
 }
