@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include "kiss_fft.h"
 #include "common.h"
+#include <limits.h>
 #include "denoise.h"
 #include <math.h>
 #include "rnnoise.h"
@@ -235,6 +236,8 @@ struct RNNModel {
 RNNModel *rnnoise_model_from_buffer(const void *ptr, int len) {
   RNNModel *model;
   model = malloc(sizeof(*model));
+  if (model == NULL) return NULL;
+
   model->blob = NULL;
   model->const_blob = ptr;
   model->blob_len = len;
@@ -244,28 +247,44 @@ RNNModel *rnnoise_model_from_buffer(const void *ptr, int len) {
 RNNModel *rnnoise_model_from_filename(const char *filename) {
   RNNModel *model;
   FILE *f = fopen(filename, "rb");
+  if (f == NULL) return NULL;
+
   model = rnnoise_model_from_file(f);
+  if (model == NULL) {
+    fclose(f);
+    return NULL;
+  }
+
   model->file = f;
   return model;
 }
 
 RNNModel *rnnoise_model_from_file(FILE *f) {
   RNNModel *model;
-  model = malloc(sizeof(*model));
-  model->file = NULL;
+  long sz;
 
-  fseek(f, 0, SEEK_END);
-  model->blob_len = ftell(f);
-  fseek(f, 0, SEEK_SET);
+  if (f == NULL) return NULL;
 
-  model->const_blob = NULL;
+  model = calloc(1, sizeof(*model));
+  if (model == NULL) return NULL;
+  
+  if (fseek(f, 0, SEEK_END) != 0) goto cleanup;
+  sz = ftell(f);
+  if (sz < 0 || sz > INT_MAX) goto cleanup;
+  if (fseek(f, 0, SEEK_SET) != 0) goto cleanup;
+
+  model->blob_len = (int)sz;
+  /* malloc(0) is implementation-defined */
+  if (sz == 0) goto cleanup;
+
   model->blob = malloc(model->blob_len);
-  if (fread(model->blob, model->blob_len, 1, f) != 1)
-  {
-    rnnoise_model_free(model);
-    return NULL;
-  }
+  if (model->blob == NULL) goto cleanup;
+  if (fread(model->blob, model->blob_len, 1, f) != 1) goto cleanup;
   return model;
+
+cleanup:
+  rnnoise_model_free(model);
+  return NULL;
 }
 
 void rnnoise_model_free(RNNModel *model) {
