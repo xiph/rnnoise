@@ -25,6 +25,8 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifdef RNNOISE_X86_64_V3
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -38,3 +40,4 @@
 #define RTCD_ARCH avx2
 
 #include "nnet_arch.h"
+#endif

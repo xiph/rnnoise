@@ -98,9 +98,9 @@ typedef struct {
 #define compute_linear_c rnn_compute_linear_c
 #define compute_activation_c rnn_compute_activation_c
 #define compute_conv2d_c rnn_compute_conv2d_c
-#define compute_linear_sse4_1 rnn_compute_linear_sse4_1
-#define compute_activation_sse4_1 rnn_compute_activation_sse4_1
-#define compute_conv2d_sse4_1 rnn_compute_conv2d_sse4_1
+#define compute_linear_sse4_2 rnn_compute_linear_sse4_2
+#define compute_activation_sse4_2 rnn_compute_activation_sse4_2
+#define compute_conv2d_sse4_2 rnn_compute_conv2d_sse4_2
 #define compute_linear_avx2 rnn_compute_linear_avx2
 #define compute_activation_avx2 rnn_compute_activation_avx2
 #define compute_conv2d_avx2 rnn_compute_conv2d_avx2

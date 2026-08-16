@@ -28,9 +28,11 @@
 #if !defined(X86CPU_H)
 # define X86CPU_H
 
-#  define MAY_HAVE_SSE4_1(name) name ## _sse4_1
+#  define MAY_HAVE_SSE4_2(name) name ## _sse4_2
 
 #  define MAY_HAVE_AVX2(name) name ## _avx2
+
+#  define MAY_HAVE_AVX512(name) name ## _avx512
 
 # ifdef RNN_ENABLE_X86_RTCD
 int opus_select_arch(void);

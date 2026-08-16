@@ -31,15 +31,23 @@
 #include "cpu_support.h"
 #include "opus_types.h"
 
-void compute_linear_sse4_1(const LinearLayer *linear, float *out, const float *in);
-void compute_activation_sse4_1(float *output, const float *input, int N, int activation);
-void compute_conv2d_sse4_1(const Conv2dLayer *conv, float *out, float *mem, const float *in, int height, int hstride, int activation);
+#ifdef RNNOISE_X86_64_V2
+void compute_linear_sse4_2(const LinearLayer *linear, float *out, const float *in);
+void compute_activation_sse4_2(float *output, const float *input, int N, int activation);
+void compute_conv2d_sse4_2(const Conv2dLayer *conv, float *out, float *mem, const float *in, int height, int hstride, int activation);
+#endif
 
+#ifdef RNNOISE_X86_64_V3
 void compute_linear_avx2(const LinearLayer *linear, float *out, const float *in);
 void compute_activation_avx2(float *output, const float *input, int N, int activation);
 void compute_conv2d_avx2(const Conv2dLayer *conv, float *out, float *mem, const float *in, int height, int hstride, int activation);
+#endif
 
-
+#ifdef RNNOISE_X86_64_V4
+void compute_linear_avx512(const LinearLayer* linear, float* out, const float* in);
+void compute_activation_avx512(float* output, const float* input, int N, int activation);
+void compute_conv2d_avx512(const Conv2dLayer* conv, float* out, float* mem, const float* in, int height, int hstride, int activation);
+#endif
 
 #ifdef RNN_ENABLE_X86_RTCD
 

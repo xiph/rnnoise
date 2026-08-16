@@ -29,11 +29,17 @@
 #include "config.h"
 #endif
 
+#define _USE_MATH_DEFINES
+
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <errno.h>
 #include "rnnoise.h"
 #include "common.h"
@@ -313,7 +319,11 @@ int main(int argc, char **argv) {
   char *argv0;
   char *rir_filename = NULL;
   struct rir_list rirs;
+#ifdef _WIN32
+  seed = GetCurrentProcessId();
+#else
   seed = getpid();
+#endif
   srand(seed);
   st = rnnoise_create(NULL);
   noisy = rnnoise_create(NULL);

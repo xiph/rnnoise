@@ -34,10 +34,11 @@
 #ifdef RNN_ENABLE_X86_RTCD
 
 #include "x86/x86cpu.h"
-/* We currently support 5 x86 variants:
+/* We currently support 4 x86 variants:
  * arch[0] -> sse2
- * arch[1] -> sse4.1
+ * arch[1] -> sse4.2
  * arch[2] -> avx2
+ * arch[3] -> avx512
  */
 #define OPUS_ARCHMASK 3
 int rnn_select_arch(void);

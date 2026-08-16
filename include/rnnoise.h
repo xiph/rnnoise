@@ -34,18 +34,20 @@
 extern "C" {
 #endif
 
-#ifndef RNNOISE_EXPORT
-# if defined(WIN32)
-#  if defined(RNNOISE_BUILD) && defined(DLL_EXPORT)
+#if !defined(RNNOISE_EXPORT) && !defined(RNNOISE_STATIC)
+# if defined(_WIN32)
+#  if defined(rnnoise_EXPORTS) || defined(RNNOISE_BUILD)
 #   define RNNOISE_EXPORT __declspec(dllexport)
 #  else
-#   define RNNOISE_EXPORT
+#   define RNNOISE_EXPORT __declspec(dllimport)
 #  endif
-# elif defined(__GNUC__) && defined(RNNOISE_BUILD)
-#  define RNNOISE_EXPORT __attribute__ ((visibility ("default")))
-# else
-#  define RNNOISE_EXPORT
+# elif defined(__GNUC__)
+#  define RNNOISE_EXPORT __attribute__((visibility("default")))
 # endif
+#endif
+
+#ifndef RNNOISE_EXPORT
+# define RNNOISE_EXPORT
 #endif
 
 typedef struct DenoiseState DenoiseState;

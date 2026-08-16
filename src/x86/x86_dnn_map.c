@@ -41,8 +41,21 @@ void (*const RNN_COMPUTE_LINEAR_IMPL[OPUS_ARCHMASK + 1])(
          const float *in
 ) = {
   compute_linear_c,                /* non-sse */
-  MAY_HAVE_SSE4_1(compute_linear), /* sse4.1  */
-  MAY_HAVE_AVX2(compute_linear)  /* avx  */
+#ifdef RNNOISE_X86_64_V2
+  MAY_HAVE_SSE4_2(compute_linear), /* sse4.2  */
+#else
+  compute_linear_c,                /* non-sse */
+#endif
+#ifdef RNNOISE_X86_64_V3
+  MAY_HAVE_AVX2(compute_linear),  /* avx2  */
+#else
+  compute_linear_c,                /* non-sse */
+#endif
+#ifdef RNNOISE_X86_64_V4
+  MAY_HAVE_AVX512(compute_linear)  /* avx512  */
+#else
+  compute_linear_c,                /* non-sse */
+#endif
 };
 
 void (*const RNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
@@ -52,8 +65,21 @@ void (*const RNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
          int activation
 ) = {
   compute_activation_c,                /* non-sse */
-  MAY_HAVE_SSE4_1(compute_activation), /* sse4.1  */
-  MAY_HAVE_AVX2(compute_activation)  /* avx  */
+#ifdef RNNOISE_X86_64_V2
+  MAY_HAVE_SSE4_2(compute_activation), /* sse4.2  */
+#else
+  compute_activation_c,                /* non-sse */
+#endif
+#ifdef RNNOISE_X86_64_V3
+  MAY_HAVE_AVX2(compute_activation),  /* avx2  */
+#else
+  compute_activation_c,                /* non-sse */
+#endif
+#ifdef RNNOISE_X86_64_V4
+  MAY_HAVE_AVX512(compute_activation)  /* avx512  */
+#else
+  compute_activation_c,                /* non-sse */
+#endif
 };
 
 void (*const RNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
@@ -66,8 +92,21 @@ void (*const RNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
          int activation
 ) = {
   compute_conv2d_c,                /* non-sse */
-  MAY_HAVE_SSE4_1(compute_conv2d), /* sse4.1  */
-  MAY_HAVE_AVX2(compute_conv2d)  /* avx  */
+#ifdef RNNOISE_X86_64_V2
+  MAY_HAVE_SSE4_2(compute_conv2d), /* sse4.2  */
+#else
+  compute_conv2d_c,                /* non-sse */
+#endif
+#ifdef RNNOISE_X86_64_V3
+  MAY_HAVE_AVX2(compute_conv2d),  /* avx2  */
+#else
+  compute_conv2d_c,                /* non-sse */
+#endif
+#ifdef RNNOISE_X86_64_V4
+  MAY_HAVE_AVX512(compute_conv2d)  /* avx512  */
+#else
+  compute_conv2d_c,                /* non-sse */
+#endif
 };
 
 

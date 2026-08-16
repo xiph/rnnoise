@@ -26,21 +26,21 @@
 
 #ifdef _MSC_VER
 
-# ifdef OPUS_X86_MAY_HAVE_SSE
+# if defined(OPUS_X86_MAY_HAVE_SSE) || defined(_M_AMD64)
 #  ifndef __SSE__
 #   define __SSE__
 #  endif
 # endif
 
-# ifdef OPUS_X86_MAY_HAVE_SSE2
+# if defined(OPUS_X86_MAY_HAVE_SSE2) || defined(_M_AMD64)
 #  ifndef __SSE2__
 #   define __SSE2__
 #  endif
 # endif
 
-# ifdef OPUS_X86_MAY_HAVE_SSE4_1
-#  ifndef __SSE4_1__
-#   define __SSE4_1__
+# ifdef OPUS_X86_MAY_HAVE_SSE4_2
+#  ifndef __SSE4_2__
+#   define __SSE4_2__
 #  endif
 # endif
 

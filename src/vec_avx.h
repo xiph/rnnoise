@@ -40,7 +40,7 @@
 
 #define USE_SU_BIAS
 
-#ifndef __SSE_4_1__
+#ifndef __SSE_4_2__
 static inline __m128 mm_floor_ps(__m128 x) {
   __m128 half = _mm_set1_ps(0.5);
   return _mm_cvtepi32_ps(_mm_cvtps_epi32(_mm_sub_ps(x, half)));
@@ -50,7 +50,7 @@ static inline __m128 mm_floor_ps(__m128 x) {
 #endif
 
 
-/* If we don't have AVX available, emulate what we need with SSE up to 4.1. */
+/* If we don't have AVX available, emulate what we need with SSE up to 4.2. */
 #ifndef __AVX__
 
 typedef struct {
@@ -161,7 +161,7 @@ static inline mm256_emu mm256_insertf128_ps(mm256_emu dst, __m128 src, int i) {
 
 
 
-/* If we don't have AVX2 available, emulate what we need with SSE up to 4.1. */
+/* If we don't have AVX2 available, emulate what we need with SSE up to 4.2. */
 #ifndef __AVX2__
 
 typedef struct {

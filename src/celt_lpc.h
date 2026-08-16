@@ -31,7 +31,7 @@
 #include "arch.h"
 #include "common.h"
 
-#if defined(OPUS_X86_MAY_HAVE_SSE4_1)
+#if defined(OPUS_X86_MAY_HAVE_SSE4_2)
 #include "x86/celt_lpc_sse.h"
 #endif
 

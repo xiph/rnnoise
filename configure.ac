@@ -86,18 +86,23 @@ AS_IF([test "$enable_dnn_debug_float" = "no"], [
        AC_DEFINE([DISABLE_DEBUG_FLOAT], [1], [Disable DNN debug float])
 ])
 
-OPUS_X86_SSE4_1_CFLAGS='-msse4.1'
-OPUS_X86_AVX2_CFLAGS='-mavx -mfma -mavx2'
-AC_SUBST([OPUS_X86_SSE4_1_CFLAGS])
+OPUS_X86_SSE42_CFLAGS='-march=x86-64-v2'
+OPUS_X86_AVX2_CFLAGS='-march=x86-64-v3'
+AC_SUBST([OPUS_X86_SSE4_2_CFLAGS])
 AC_SUBST([OPUS_X86_AVX2_CFLAGS])
+
 AC_ARG_ENABLE([x86-rtcd],
   AS_HELP_STRING([--enable-x86-rtcd], [x86 rtcd]),,
   enable_x86_rtcd=no)
-AM_CONDITIONAL([RNN_ENABLE_X86_RTCD], [test "$enable_x86_rtcd" = "yes"])
+
+AM_CONDITIONAL([RNN_ENABLE_X86_RTCD],
+  [test "$enable_x86_rtcd" = "yes"])
 
 AS_IF([test "$enable_x86_rtcd" = "yes"], [
-  AC_DEFINE([RNN_ENABLE_X86_RTCD], [1], [Enable x86 rtcd])
-  AC_DEFINE([CPU_INFO_BY_ASM], [1], [RTCD from ASM only for now])
+  AC_DEFINE([RNNOISE_ENABLE_X86_RTCD], [1], [Enable x86 RTCD])
+  AC_DEFINE([RNNOISE_CPU_INFO_BY_ASM], [1], [Use assembly CPU detection])
+  AC_DEFINE([RNNOISE_X86_64_V2], [1], [Enable x86-64 v2])
+  AC_DEFINE([RNNOISE_X86_64_V3], [1], [Enable x86-64 v3])
 ])
 
 AS_CASE(["$ac_cv_search_lrintf"],
