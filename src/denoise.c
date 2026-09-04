@@ -1,4 +1,5 @@
-/* Copyright (c) 2018 Gregor Richards
+/* Copyright (c) 2024 Jean-Marc Valin
+ * Copyright (c) 2018 Gregor Richards
  * Copyright (c) 2017 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
@@ -50,9 +51,6 @@
 #endif
 
 
-/* The built-in model, used if no file is given as input */
-extern const struct RNNModel rnnoise_model_orig;
-
 /* ERB bandwidths going in reverse from 20 kHz and then replacing the 700 and 800
    with just 750 because having 32 bands is convenient for the DNN. 
    B(1)=400;
@@ -82,6 +80,11 @@ struct DenoiseState {
   float mem_hp_x[2];
   float lastg[NB_BANDS];
   RNNState rnn;
+  kiss_fft_cpx delayed_X[FREQ_SIZE];
+  kiss_fft_cpx delayed_P[FREQ_SIZE];
+  float delayed_Ex[NB_BANDS], delayed_Ep[NB_BANDS];
+  float delayed_Exp[NB_BANDS];
+
 };
 
 static void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
@@ -221,29 +224,99 @@ static void apply_window(float *x) {
   }
 }
 
-int rnnoise_get_size() {
+struct RNNModel {
+  /* Set either blob or const_blob. */
+  const void *const_blob;
+  void *blob;
+  int blob_len;
+  FILE *file;
+};
+
+RNNModel *rnnoise_model_from_buffer(const void *ptr, int len) {
+  RNNModel *model;
+  model = malloc(sizeof(*model));
+  model->blob = NULL;
+  model->const_blob = ptr;
+  model->blob_len = len;
+  return model;
+}
+
+RNNModel *rnnoise_model_from_filename(const char *filename) {
+  RNNModel *model;
+  FILE *f = fopen(filename, "rb");
+  model = rnnoise_model_from_file(f);
+  model->file = f;
+  return model;
+}
+
+RNNModel *rnnoise_model_from_file(FILE *f) {
+  RNNModel *model;
+  model = malloc(sizeof(*model));
+  model->file = NULL;
+
+  fseek(f, 0, SEEK_END);
+  model->blob_len = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  model->const_blob = NULL;
+  model->blob = malloc(model->blob_len);
+  if (fread(model->blob, model->blob_len, 1, f) != 1)
+  {
+    rnnoise_model_free(model);
+    return NULL;
+  }
+  return model;
+}
+
+void rnnoise_model_free(RNNModel *model) {
+  if (model->file != NULL) fclose(model->file);
+  if (model->blob != NULL) free(model->blob);
+  free(model);
+}
+
+int rnnoise_get_size(void) {
   return sizeof(DenoiseState);
 }
 
-int rnnoise_get_frame_size() {
+int rnnoise_get_frame_size(void) {
   return FRAME_SIZE;
 }
 
-extern const WeightArray rnnoise_arrays[];
 int rnnoise_init(DenoiseState *st, RNNModel *model) {
   memset(st, 0, sizeof(*st));
-  init_rnnoise(&st->model, rnnoise_arrays);
 #if !TRAINING
-  st->arch = rnn_select_arch();
+  if (model != NULL) {
+    WeightArray *list;
+    int ret = 1;
+    parse_weights(&list, model->blob ? model->blob : model->const_blob, model->blob_len);
+    if (list != NULL) {
+      ret = init_rnnoise(&st->model, list);
+      opus_free(list);
+    }
+    if (ret != 0) return -1;
+  }
+#ifndef USE_WEIGHTS_FILE
+  else {
+    int ret = init_rnnoise(&st->model, rnnoise_arrays);
+    if (ret != 0) return -1;
+  }
 #endif
+  st->arch = rnn_select_arch();
+#else
   (void)model;
+#endif
   return 0;
 }
 
 DenoiseState *rnnoise_create(RNNModel *model) {
+  int ret;
   DenoiseState *st;
   st = malloc(rnnoise_get_size());
-  rnnoise_init(st, model);
+  ret = rnnoise_init(st, model);
+  if (ret != 0) {
+    free(st);
+    return NULL;
+  }
   return st;
 }
 
@@ -384,7 +457,7 @@ void rnn_pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, c
 float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   int i;
   kiss_fft_cpx X[FREQ_SIZE];
-  kiss_fft_cpx P[WINDOW_SIZE];
+  kiss_fft_cpx P[FREQ_SIZE];
   float x[FRAME_SIZE];
   float Ex[NB_BANDS], Ep[NB_BANDS];
   float Exp[NB_BANDS];
@@ -402,22 +475,31 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 #if !TRAINING
     compute_rnn(&st->model, &st->rnn, g, &vad_prob, features, st->arch);
 #endif
-    rnn_pitch_filter(X, P, Ex, Ep, Exp, g);
+    rnn_pitch_filter(st->delayed_X, st->delayed_P, st->delayed_Ex, st->delayed_Ep, st->delayed_Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
+      /* Cap the decay at 0.6 per frame, corresponding to an RT60 of 135 ms.
+         That avoids unnaturally quick attenuation. */
       g[i] = MAX16(g[i], alpha*st->lastg[i]);
-      st->lastg[i] = g[i];
+      /* Compensate for energy change across frame when computing the threshold gain.
+         Avoids leaking noise when energy increases (e.g. transient noise). */
+      st->lastg[i] = MIN16(1.f, g[i]*(st->delayed_Ex[i]+1e-3)/(Ex[i]+1e-3));
     }
     interp_band_gain(gf, g);
 #if 1
     for (i=0;i<FREQ_SIZE;i++) {
-      X[i].r *= gf[i];
-      X[i].i *= gf[i];
+      st->delayed_X[i].r *= gf[i];
+      st->delayed_X[i].i *= gf[i];
     }
 #endif
   }
+  frame_synthesis(st, out, st->delayed_X);
 
-  frame_synthesis(st, out, X);
+  RNN_COPY(st->delayed_X, X, FREQ_SIZE);
+  RNN_COPY(st->delayed_P, P, FREQ_SIZE);
+  RNN_COPY(st->delayed_Ex, Ex, NB_BANDS);
+  RNN_COPY(st->delayed_Ep, Ep, NB_BANDS);
+  RNN_COPY(st->delayed_Exp, Exp, NB_BANDS);
   return vad_prob;
 }
 

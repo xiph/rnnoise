@@ -30,6 +30,7 @@
 #define VEC_H
 
 #include "opus_types.h"
+#include "common.h"
 #include <math.h>
 #include "arch.h"
 #include "x86/x86_arch_macros.h"
@@ -41,8 +42,6 @@
 #include "vec_neon.h"
 #else
 
-#include "os_support.h"
-
 #define MAX_INPUTS (2048)
 
 #define NO_OPTIMIZATIONS
@@ -50,7 +49,7 @@
 static inline void sgemv16x1(float *out, const float *weights, int rows, int cols, int col_stride, const float *x)
 {
    int i, j;
-   OPUS_CLEAR(out, rows);
+   RNN_CLEAR(out, rows);
    for (i=0;i<rows;i+=16)
    {
       for (j=0;j<cols;j++)
@@ -84,7 +83,7 @@ static inline void sgemv16x1(float *out, const float *weights, int rows, int col
 static inline void sgemv8x1(float *out, const float *weights, int rows, int cols, int col_stride, const float *x)
 {
    int i, j;
-   OPUS_CLEAR(out, rows);
+   RNN_CLEAR(out, rows);
    for (i=0;i<rows;i+=8)
    {
       for (j=0;j<cols;j++)
@@ -124,7 +123,7 @@ static inline void sgemv(float *out, const float *weights, int rows, int cols, i
 static inline void sparse_sgemv8x4(float *out, const float *w, const int *idx, int rows, const float *x)
 {
    int i, j;
-   OPUS_CLEAR(out, rows);
+   RNN_CLEAR(out, rows);
    for (i=0;i<rows;i+=8)
    {
       int cols;

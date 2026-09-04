@@ -34,7 +34,7 @@
 
 #include <immintrin.h>
 #include <math.h>
-/*#include "celt/x86/x86cpu.h"*/
+#include "x86/x86cpu.h"
 
 #define MAX_INPUTS (2048)
 

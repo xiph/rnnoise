@@ -36,8 +36,8 @@
 int opus_select_arch(void);
 # endif
 
-# if defined(OPUS_X86_MAY_HAVE_SSE2)
-#  include "opus_defines.h"
+# if defined(__SSE2__)
+#  include "common.h"
 
 /*MOVD should not impose any alignment restrictions, but the C standard does,
    and UBSan will report errors if we actually make unaligned accesses.

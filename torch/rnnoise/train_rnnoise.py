@@ -1,3 +1,31 @@
+"""
+/* Copyright (c) 2024 Jean-Marc Valin */
+/*
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+
+   - Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+   - Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+   OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+"""
+
 import numpy as np
 import torch
 from torch import nn
@@ -18,16 +46,17 @@ parser.add_argument('--cuda-visible-devices', type=str, help="comma separates li
 
 model_group = parser.add_argument_group(title="model parameters")
 model_group.add_argument('--cond-size', type=int, help="first conditioning size, default: 128", default=128)
-model_group.add_argument('--gru-size', type=int, help="first conditioning size, default: 256", default=256)
+model_group.add_argument('--gru-size', type=int, help="first conditioning size, default: 384", default=384)
 
 training_group = parser.add_argument_group(title="training parameters")
-training_group.add_argument('--batch-size', type=int, help="batch size, default: 192", default=192)
+training_group.add_argument('--batch-size', type=int, help="batch size, default: 128", default=128)
 training_group.add_argument('--lr', type=float, help='learning rate, default: 1e-3', default=1e-3)
 training_group.add_argument('--epochs', type=int, help='number of training epochs, default: 200', default=200)
 training_group.add_argument('--sequence-length', type=int, help='sequence length, default: 2000', default=2000)
-training_group.add_argument('--lr-decay', type=float, help='learning rate decay factor, default: 1e-3', default=1e-3)
+training_group.add_argument('--lr-decay', type=float, help='learning rate decay factor, default: 5e-5', default=5e-5)
 training_group.add_argument('--initial-checkpoint', type=str, help='initial checkpoint to start training from, default: None', default=None)
-training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.1667)', default=0.1667)
+training_group.add_argument('--gamma', type=float, help='perceptual exponent (default 0.25)', default=0.25)
+training_group.add_argument('--sparse', action='store_true')
 
 args = parser.parse_args()
 
@@ -115,18 +144,21 @@ if __name__ == '__main__':
 
                 pred_gain, pred_vad, states = model(features, states=states)
                 states = [state.detach() for state in states]
-                gain = gain[:,4:,:]
-                vad = vad[:,4:,:]
+                gain = gain[:,3:-1,:]
+                vad = vad[:,3:-1,:]
                 target_gain = torch.clamp(gain, min=0)
-                target_gain = target_gain*(torch.tanh(5*target_gain)**2)
+                target_gain = target_gain*(torch.tanh(8*target_gain)**2)
 
-                gain_loss = torch.mean(mask(gain)*(pred_gain**gamma - target_gain**gamma)**2)
+                e = pred_gain**gamma - target_gain**gamma
+                gain_loss = torch.mean((1+5.*vad)*mask(gain)*(e**2))
                 #vad_loss = torch.mean(torch.abs(2*vad-1)*(vad-pred_vad)**2)
                 vad_loss = torch.mean(torch.abs(2*vad-1)*(-vad*torch.log(.01+pred_vad) - (1-vad)*torch.log(1.01-pred_vad)))
-                loss = gain_loss + .0005*vad_loss
+                loss = gain_loss + .001*vad_loss
 
                 loss.backward()
                 optimizer.step()
+                if args.sparse:
+                    model.sparsify()
 
                 scheduler.step()
 

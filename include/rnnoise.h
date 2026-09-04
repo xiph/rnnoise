@@ -54,12 +54,12 @@ typedef struct RNNModel RNNModel;
 /**
  * Return the size of DenoiseState
  */
-RNNOISE_EXPORT int rnnoise_get_size();
+RNNOISE_EXPORT int rnnoise_get_size(void);
 
 /**
  * Return the number of samples processed by rnnoise_process_frame at a time
  */
-RNNOISE_EXPORT int rnnoise_get_frame_size();
+RNNOISE_EXPORT int rnnoise_get_frame_size(void);
 
 /**
  * Initializes a pre-allocated DenoiseState
@@ -94,11 +94,28 @@ RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
 
 /**
+ * Load a model from a memory buffer
+ *
+ * It must be deallocated with rnnoise_model_free() and the buffer must remain
+ * valid until after the returned object is destroyed.
+ */
+RNNOISE_EXPORT RNNModel *rnnoise_model_from_buffer(const void *ptr, int len);
+
+
+/**
  * Load a model from a file
+ *
+ * It must be deallocated with rnnoise_model_free() and the file must not be
+ * closed until the returned object is destroyed.
+ */
+RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
+
+/**
+ * Load a model from a file name
  *
  * It must be deallocated with rnnoise_model_free()
  */
-RNNOISE_EXPORT RNNModel *rnnoise_model_from_file(FILE *f);
+RNNOISE_EXPORT RNNModel *rnnoise_model_from_filename(const char *filename);
 
 /**
  * Free a custom model

@@ -26,7 +26,7 @@
 
 #include "rnnoise.h"
 #include "kiss_fft.h"
-
+#include "nnet.h"
 
 #define FRAME_SIZE 480
 #define WINDOW_SIZE (2*FRAME_SIZE)
@@ -40,6 +40,7 @@
 #define PITCH_FRAME_SIZE 960
 #define PITCH_BUF_SIZE (PITCH_MAX_PERIOD+PITCH_FRAME_SIZE)
 
+extern const WeightArray rnnoise_arrays[];
 
 extern const int eband20ms[];
 
